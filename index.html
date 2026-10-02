@@ -1,0 +1,801 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><link rel="icon" href="favicon.svg" type="image/svg+xml"><link rel="icon" href="favicon.png" sizes="64x64"><link rel="apple-touch-icon" href="apple-touch-icon.png"><link rel="manifest" href="manifest.json"><meta name="theme-color" content="#0071e3"><meta name="apple-mobile-web-app-capable" content="yes"><style>[hidden]{display:none!important}</style><title>Stock Atelier</title>
+<style>
+/* Layout: one-screen app, bottom tab bar, Scan tab as the hub with a full-width action zone at the bottom. */
+:root{
+  --bg:#f5f5f7; --surface:#ffffff; --surface2:#eef0f3; --fg:#1d1d1f; --muted:#6e6e73; --line:#e4e4e8;
+  --accent:#0071e3; --accent-fg:#ffffff;
+  --in:#1f8a4c; --in-bg:#e4f5ea; --out:#d0352a; --out-bg:#fbe6e3; --build:#2458c5; --build-bg:#e3ebfb;
+  --warn:#b5600a; --warn-bg:#fbeedc; --shadow:0 1px 2px rgba(0,0,0,.04),0 8px 24px rgba(0,0,0,.05);
+  --display:-apple-system,BlinkMacSystemFont,"SF Pro Display","Helvetica Neue",Helvetica,Arial,sans-serif; --body:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Helvetica,Arial,sans-serif; --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#000000; --surface:#1c1c1e; --surface2:#2c2c2e; --fg:#f5f5f7; --muted:#98989d; --line:#3a3a3c;
+  --accent:#2997ff; --accent-fg:#000000;
+  --in:#4ccb82; --in-bg:#17311f; --out:#ff6b5e; --out-bg:#3b1f1c; --build:#6e9af0; --build-bg:#1c2a4a;
+  --warn:#f0a44a; --warn-bg:#3a2c18; --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.35); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#000000; --surface:#1c1c1e; --surface2:#2c2c2e; --fg:#f5f5f7; --muted:#98989d; --line:#3a3a3c;
+  --accent:#2997ff; --accent-fg:#000000;
+  --in:#4ccb82; --in-bg:#17311f; --out:#ff6b5e; --out-bg:#3b1f1c; --build:#6e9af0; --build-bg:#1c2a4a;
+  --warn:#f0a44a; --warn-bg:#3a2c18; --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.35); color-scheme:dark}
+
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.4 var(--body);display:flex;flex-direction:column;overflow:hidden}
+*{box-sizing:border-box}
+button,input,select,textarea{font:inherit;color:inherit}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0;letter-spacing:-.02em;font-weight:700}
+h1{font-size:22px;line-height:1.1;white-space:nowrap}
+h2{font-size:28px}
+h3{font-size:17px;font-weight:600}
+.mono{font-family:var(--mono);font-size:.9em}
+.muted{color:var(--muted)}
+.num{font-variant-numeric:tabular-nums}
+.eyebrow{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
+a{color:var(--build)}
+
+/* top bar */
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 16px;background:var(--bg);flex:none}
+.top .brand{display:flex;align-items:baseline;gap:10px}
+.top .brand small{color:var(--muted);font-size:12px}
+.ready-pill{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.ready-pill span{background:var(--surface);box-shadow:var(--shadow);border-radius:999px;padding:4px 12px;font-size:13px;font-weight:500;white-space:nowrap}
+.ready-pill b{font-size:15px;color:var(--accent);font-weight:700}
+
+/* main */
+main{flex:1;min-height:0;overflow:auto;-webkit-overflow-scrolling:touch}
+.page{padding-block:16px;padding-inline:16px;max-width:1100px;margin:0 auto}
+.page[hidden]{display:none}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.row>*{min-width:0}
+.grow{flex:1}
+.stack{display:flex;flex-direction:column;gap:12px}
+
+/* tab bar */
+nav.tabs{flex:none;display:grid;grid-template-columns:repeat(7,1fr);background:color-mix(in srgb,var(--surface) 82%,transparent);backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
+nav.tabs button{background:none;border:0;padding:8px 2px 6px;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10px;font-weight:500;color:var(--muted);cursor:pointer}
+nav.tabs button svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+nav.tabs button.active{color:var(--accent)}
+nav.tabs button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+
+/* controls */
+.btn{border:0;background:var(--surface2);border-radius:999px;padding:9px 16px;cursor:pointer;font-weight:500;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.btn:hover{filter:brightness(.96)}
+.btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn.primary{background:var(--accent);color:var(--accent-fg)}
+.btn.danger{color:var(--out);background:var(--out-bg)}
+.btn.small{padding:4px 9px;font-size:13px}
+.btn.icon{padding:6px 8px}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+input[type=text],input[type=number],input[type=search],input[type=url],select,textarea{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:9px 12px;width:100%}
+input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:600;color:var(--muted)}
+label.f>input,label.f>select,label.f>textarea{font-weight:400;color:var(--fg)}
+.chip{display:inline-flex;align-items:center;border-radius:999px;padding:2px 9px;font-size:12px;font-weight:600;background:var(--surface2)}
+.chip.in{background:var(--in-bg);color:var(--in)} .chip.out{background:var(--out-bg);color:var(--out)} .chip.build{background:var(--build-bg);color:var(--build)} .chip.warn{background:var(--warn-bg);color:var(--warn)}
+
+/* tiles */
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.tile{background:var(--surface);box-shadow:var(--shadow);border-radius:16px;padding:14px 16px;display:flex;flex-direction:column;gap:4px}
+.tile b{font-family:var(--display);font-size:28px;line-height:1;font-weight:700;letter-spacing:-.03em}
+.tile.accent b{color:var(--accent)}
+.card{background:var(--surface);box-shadow:var(--shadow);border-radius:16px;padding:16px}
+
+/* ready counter */
+.ready{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+.ready .r{background:var(--surface);box-shadow:var(--shadow);border-radius:16px;padding:12px 14px;display:flex;align-items:center;gap:12px}
+.ready .r b{font-family:var(--display);font-size:40px;line-height:1;min-width:52px;text-align:center;letter-spacing:-.04em;color:var(--accent)}
+.ready .r .ctl{display:flex;flex-direction:column;gap:4px}
+.ready .r .ctl button{width:38px;height:30px;border-radius:8px;border:0;background:var(--surface2);cursor:pointer;font-weight:600;font-size:18px;line-height:1}
+
+/* tables */
+.tablewrap{overflow-x:auto;background:var(--surface);box-shadow:var(--shadow);border-radius:16px}
+table{border-collapse:collapse;width:100%;min-width:620px}
+#stock-table{min-width:560px}
+#shop-table{min-width:520px}
+#shop-table td:first-child{min-width:170px}
+th,td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--line);vertical-align:middle}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);background:var(--surface);position:sticky;top:0;z-index:1}
+td.r,th.r{text-align:right}
+tr.low td{background:var(--out-bg)}
+tr.low td.stockcell{color:var(--out)}
+/* colonne Stock mise en valeur : encadrée */
+#stock-table th.stockcell,#stock-table td.stockcell,#shop-table th.stockcell,#shop-table td.stockcell{border-left:2px solid var(--accent);border-right:2px solid var(--accent);background:color-mix(in srgb,var(--accent) 7%,var(--surface));font-weight:700;font-size:16px}
+#stock-table th.stockcell,#shop-table th.stockcell{border-top:2px solid var(--accent);color:var(--accent)}
+#stock-table tbody tr:last-child td.stockcell,#shop-table tbody tr:last-child td.stockcell{border-bottom:2px solid var(--accent)}
+#stock-table tr.low td.stockcell,#shop-table tr.low td.stockcell{background:color-mix(in srgb,var(--out) 12%,var(--surface))}
+tr.dragging{opacity:.4}
+tr.over td{border-top:2px solid var(--accent)}
+.handle{cursor:grab;color:var(--muted);user-select:none;padding:0 4px}
+td .name{font-weight:600}
+td .sub{font-size:12px;color:var(--muted)}
+tr[data-sku]{cursor:pointer}
+.ord button{border:0;background:var(--surface2);border-radius:6px;width:26px;height:22px;cursor:pointer;font-size:11px;padding:0}
+
+/* scan screen */
+#p-scan{display:flex;flex-direction:column;min-height:100%;padding:0}
+.scan-head{padding:12px 16px 0;max-width:900px;width:100%;margin:0 auto}
+.modes{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.modes button{border:0;background:var(--surface);box-shadow:var(--shadow);border-radius:14px;padding:14px 6px;font-family:var(--display);font-size:17px;font-weight:600;cursor:pointer;letter-spacing:-.01em}
+.modes button[data-m=IN].on{background:var(--in);border-color:var(--in);color:#fff}
+.modes button[data-m=OUT].on{background:var(--out);border-color:var(--out);color:#fff}
+.modes button[data-m=BUILD].on{background:var(--build);border-color:var(--build);color:#fff}
+.scan-body{flex:1;padding:12px 16px;max-width:900px;width:100%;margin:0 auto;display:flex;flex-direction:column;gap:12px}
+.lastscan{background:var(--surface);border:2px solid transparent;box-shadow:var(--shadow);border-radius:16px;padding:18px;min-height:118px;display:flex;flex-direction:column;gap:4px;justify-content:center}
+.lastscan .big{font-family:var(--display);font-size:30px;line-height:1.05;font-weight:700;letter-spacing:-.03em}
+.lastscan .delta{font-family:var(--display);font-size:24px;font-weight:600}
+.lastscan.in{border-color:var(--in)} .lastscan.out{border-color:var(--out)} .lastscan.build{border-color:var(--build)} .lastscan.err{border-color:var(--warn);background:var(--warn-bg)}
+.scan-foot{flex:none;padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px));background:var(--bg)}
+.scan-foot .inner{max-width:900px;margin:0 auto;display:flex;gap:8px;align-items:stretch}
+.scan-foot input{font-family:var(--mono);font-size:18px;text-transform:uppercase;height:56px;border-radius:14px}
+.scan-foot .qty{width:84px;text-align:center;font-size:18px;height:56px}
+.scan-foot .go{height:56px;padding:0 24px;font-family:var(--display);font-size:19px;border-radius:14px}
+.sugg{display:flex;flex-wrap:wrap;gap:6px}
+.sugg button{border:0;background:var(--surface);box-shadow:var(--shadow);border-radius:999px;padding:6px 12px;cursor:pointer;font-size:13px}
+.sugg button .mono{color:var(--muted)}
+
+/* build checklist */
+.chk{display:flex;flex-direction:column;gap:4px}
+.chk .l{display:grid;grid-template-columns:28px 1fr auto;gap:8px;align-items:center;padding:8px 12px;background:var(--surface);border:1.5px solid transparent;box-shadow:var(--shadow);border-radius:12px}
+.chk .l.ok{border-color:var(--in)} .chk .l.miss{border-color:var(--out);background:var(--out-bg)} .chk .l.done{opacity:.55}
+.chk .l .cnt{font-family:var(--display);font-size:18px;font-weight:600;white-space:nowrap}
+.chk .mark{width:24px;height:24px;border-radius:50%;border:2px solid var(--muted);background:var(--surface);display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;cursor:pointer;padding:0;color:var(--fg)}
+.chk .mark:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.chk .l.done .mark{background:var(--in);border-color:var(--in);color:#fff}
+.progress{height:8px;background:var(--surface2);border-radius:4px;overflow:hidden}
+.progress i{display:block;height:100%;background:var(--build)}
+
+/* bundle cards */
+.bcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
+.bcard{background:var(--surface);box-shadow:var(--shadow);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:10px}
+.bcard .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.bcard .stats div{background:var(--surface2);border-radius:10px;padding:8px 10px;font-size:12px;color:var(--muted)}
+.bcard .stats b{display:block;font-family:var(--display);font-size:19px;font-weight:600;letter-spacing:-.02em;color:var(--fg)}
+.bcard .stats b.zero{color:var(--out)}
+
+/* modal */
+.overlay{position:fixed;inset:0;background:rgba(10,12,16,.55);display:flex;align-items:flex-end;justify-content:center;z-index:50;padding:0}
+@media(min-width:640px){.overlay{align-items:center;padding:20px}}
+.modal{background:var(--bg);border-radius:20px 20px 0 0;width:100%;max-width:720px;max-height:92%;overflow:auto;padding:16px;display:flex;flex-direction:column;gap:12px}
+@media(min-width:640px){.modal{border-radius:14px}}
+.modal .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:480px){.modal .grid2{grid-template-columns:1fr}}
+.modal .actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+.modal .actions .left{margin-right:auto}
+.lines{display:flex;flex-direction:column;gap:6px}
+.lines .ln{display:grid;grid-template-columns:1fr 70px auto;gap:6px;align-items:center}
+.lines .ln .ord{display:flex;gap:2px}
+
+/* toast */
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(140px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:10px 14px;border-radius:999px;display:flex;gap:12px;align-items:center;z-index:60;box-shadow:0 6px 24px rgba(0,0,0,.25);max-width:92vw}
+.toast button{background:var(--accent);color:var(--accent-fg);border:0;border-radius:6px;padding:5px 10px;font-weight:700;cursor:pointer}
+.toast[hidden]{display:none}
+
+/* labels */
+.labels{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px}
+.label{background:#fff;color:#000;border:1px dashed #999;border-radius:4px;padding:6px;display:flex;flex-direction:column;align-items:center;gap:2px;text-align:center}
+.label svg{max-width:100%;height:auto}
+.label .n{font-size:11px;line-height:1.15;max-height:26px;overflow:hidden}
+@media print{body{overflow:visible;display:block} .top,nav.tabs,.no-print{display:none!important} main{overflow:visible} .labels{grid-template-columns:repeat(4,1fr)} .label{border-color:#ccc}}
+/* charts */
+.charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:10px}
+.chart svg{width:100%;height:auto;display:block}
+.chart .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:6px}
+.chart .legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.chart text{font-family:var(--body);fill:var(--fg);font-size:12.5px}
+.chart text.m{fill:var(--muted);font-size:12px}
+.chart svg{max-width:640px}
+.chart rect.seg:hover{opacity:.8}
+/* commandes */
+.ocards{display:flex;flex-direction:column;gap:10px}
+.ocard{background:var(--surface);box-shadow:var(--shadow);border-radius:16px;padding:14px 16px;display:flex;flex-direction:column;gap:8px}
+.ocard .head{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.ocard .client{font-size:18px;font-weight:700;letter-spacing:-.02em}
+.ocard .n{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.ocard details summary{cursor:pointer;color:var(--accent);font-size:13px;font-weight:500;list-style:none}
+.ocard details summary::-webkit-details-marker{display:none}
+.chip.pending{background:var(--warn-bg);color:var(--warn)} .chip.built{background:var(--build-bg);color:var(--build)} .chip.delivered{background:var(--in-bg);color:var(--in)}
+.ocard.delivered{opacity:.7}
+.empty{padding:28px;text-align:center;color:var(--muted)}
+@media (prefers-reduced-motion:no-preference){.lastscan{transition:border-color .2s}}
+</style>
+
+</head><body><header class="top">
+  <div class="brand"><h1>Stock Atelier</h1><small id="brand-sub">prototype</small></div>
+  <div class="ready-pill" id="top-ready"></div>
+</header>
+
+<main>
+  <!-- DASHBOARD -->
+  <section class="page" id="p-dash" hidden>
+    <div class="stack">
+      <div class="row"><h2 class="grow">Tableau de bord</h2><span class="muted" id="dash-date"></span></div>
+      <div>
+        <div class="eyebrow" style="margin-bottom:6px">Prêts à vendre</div>
+        <div class="ready" id="dash-ready"></div>
+      </div>
+      <div class="charts">
+        <div class="card chart"><h3>État du stock par catégorie</h3><div class="muted" style="font-size:12px;margin-bottom:8px">Nombre d'articles : au-dessus du seuil, sous le seuil, épuisés.</div><div id="chart-status"></div></div>
+        <div class="card chart"><h3>Valeur immobilisée par catégorie</h3><div class="muted" style="font-size:12px;margin-bottom:8px">Composants en armoire, au prix unitaire.</div><div id="chart-value"></div></div>
+      </div>
+      <div class="tiles" id="dash-tiles"></div>
+      <div class="card">
+        <div class="row" style="margin-bottom:8px"><h3 class="grow">Sous le seuil de réassort</h3><span class="chip warn" id="low-count"></span></div>
+        <div class="tablewrap"><table id="low-table"><thead><tr><th>SKU</th><th>Article</th><th class="r">Stock</th><th class="r">ROP</th><th class="r">À commander</th><th>Lien</th></tr></thead><tbody></tbody></table></div>
+      </div>
+      <div class="card">
+        <h3 style="margin-bottom:8px">Derniers mouvements</h3>
+        <div class="tablewrap"><table id="recent-table"><thead><tr><th>Quand</th><th>Type</th><th>SKU</th><th>Article</th><th class="r">Qté</th><th>Réf.</th></tr></thead><tbody></tbody></table></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SCAN -->
+  <section class="page" id="p-scan" hidden>
+    <div class="scan-head">
+      <div class="modes">
+        <button data-m="IN" id="m-in">ENTRÉE</button>
+        <button data-m="OUT" id="m-out">SORTIE</button>
+        <button data-m="BUILD" id="m-build">BUILD</button>
+      </div>
+    </div>
+    <div class="scan-body">
+      <div class="lastscan" id="lastscan"><div class="muted">Scannez un code-barre, ou tapez un SKU et validez.</div></div>
+      <div id="build-panel" hidden></div>
+      <div id="scan-sugg" class="sugg"></div>
+    </div>
+    <div class="scan-foot">
+      <div class="inner">
+        <input type="text" id="scan-input" placeholder="SKU…" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Code à scanner">
+        <input type="number" id="scan-qty" class="qty" value="1" min="1" step="1" aria-label="Quantité">
+        <button class="btn primary go" id="scan-go">OK</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- STOCK -->
+  <section class="page" id="p-stock" hidden>
+    <div class="stack">
+      <div class="row">
+        <h2 class="grow">Stock</h2>
+        <button class="btn primary" id="btn-new-item">+ Nouvel item</button>
+      </div>
+      <div class="row">
+        <input type="search" id="stock-search" placeholder="Rechercher SKU ou nom" class="grow" style="min-width:160px">
+        <select id="stock-cat" style="width:auto"></select>
+        <label class="row" style="gap:6px;font-size:13px"><input type="checkbox" id="stock-low"> Sous le seuil</label>
+      </div>
+      <div class="muted" style="font-size:13px">Glissez la poignée ☰ pour réordonner (ou utilisez ▲▼). Cliquez une ligne pour la modifier.</div>
+      <div class="tablewrap"><table id="stock-table"><thead><tr><th></th><th>Article</th><th class="r stockcell">Stock</th><th class="r">ROP</th><th class="r">Prix</th><th class="r">Valeur</th><th></th></tr></thead><tbody></tbody></table></div>
+      <div class="row muted" style="font-size:13px" id="stock-foot"></div>
+    </div>
+  </section>
+
+  <!-- BUNDLES -->
+  <section class="page" id="p-bundles" hidden>
+    <div class="stack">
+      <div class="row"><h2 class="grow">Bundles</h2><button class="btn primary" id="btn-new-bundle">+ Nouveau bundle</button></div>
+      <div class="muted" style="font-size:13px">Un bundle liste des composants (et éventuellement des produits finis, comme un Rack Pro monté). "Constructible" = combien de fois le stock actuel permet de le monter.</div>
+      <div class="bcards" id="bcards"></div>
+    </div>
+  </section>
+
+  <!-- COMMANDES -->
+  <section class="page" id="p-orders" hidden>
+    <div class="stack">
+      <div class="row"><h2 class="grow">Commandes</h2><button class="btn primary" id="btn-new-order">+ Nouvelle commande</button></div>
+      <div class="muted" style="font-size:13px">Chaque commande réserve les pièces de son bundle. La liste de courses en déduit ce qu'il faut acheter pour servir tout le monde et garder votre stock d'avance.</div>
+      <div class="card">
+        <div class="row" style="margin-bottom:8px"><h3 class="grow">Liste de courses</h3><span class="chip warn" id="shop-count"></span></div>
+        <div class="muted" style="font-size:12px;margin-bottom:8px" id="shop-sub"></div>
+        <div class="tablewrap"><table id="shop-table"><thead><tr><th>Article</th><th class="r stockcell">À commander</th><th class="r">Besoin</th><th class="r">En stock</th><th class="r">Coût</th><th>Lien</th></tr></thead><tbody></tbody></table></div>
+      </div>
+      <h3>En attente de build</h3><div class="ocards" id="o-pending"></div>
+      <h3>Construits, à livrer</h3><div class="ocards" id="o-built"></div>
+      <h3>Livrés</h3><div class="ocards" id="o-done"></div>
+    </div>
+  </section>
+
+  <!-- JOURNAL -->
+  <section class="page" id="p-journal" hidden>
+    <div class="stack">
+      <div class="row"><h2 class="grow">Journal des mouvements</h2><button class="btn" id="btn-csv">Exporter CSV</button></div>
+      <div class="row">
+        <input type="search" id="j-search" placeholder="SKU, article ou référence" class="grow" style="min-width:160px">
+        <select id="j-type" style="width:auto"><option value="">Tous les types</option><option value="IN">Entrée</option><option value="OUT">Sortie</option><option value="BUILD">Build</option><option value="ADJ">Ajustement</option></select>
+      </div>
+      <div class="tablewrap"><table id="j-table"><thead><tr><th>Quand</th><th>Type</th><th>SKU</th><th>Article</th><th class="r">Qté</th><th>Référence / note</th><th></th></tr></thead><tbody></tbody></table></div>
+    </div>
+  </section>
+
+  <!-- PLUS: labels + settings -->
+  <section class="page" id="p-more" hidden>
+    <div class="stack">
+      <h2>Étiquettes</h2>
+      <div class="card stack">
+        <div class="row">
+          <select id="lab-cat" style="width:auto"></select>
+          <button class="btn" id="lab-gen">Générer les étiquettes</button>
+          <button class="btn" id="lab-cmd">Codes de commande (IN / OUT / BUILD / UNDO)</button>
+        </div>
+        <div class="muted" style="font-size:13px">Code 128, lisible par votre scanner 1D. Dans la version installée sur le Pi, Ctrl+P imprime cette planche (4 par ligne en A4).</div>
+        <div class="labels" id="labels"></div>
+      </div>
+      <h2>Catégories</h2>
+      <div class="card"><div class="row" id="cat-list"></div><div class="row" style="margin-top:8px"><input type="text" id="cat-new" placeholder="Nouvelle catégorie" style="max-width:260px"><button class="btn" id="cat-add">Ajouter</button></div></div>
+      <h2>Données</h2>
+      <div class="card stack">
+        <div class="muted" style="font-size:13px">Vos données restent dans ce navigateur, sur cet appareil : rien n'est envoyé en ligne et rien n'est écrit dans le code de la page. Pour les retrouver ailleurs, copiez l'export JSON. La version Raspberry Pi remplacera cette couche par PocketBase.</div>
+        <div class="row">
+          <button class="btn" id="btn-export">Afficher l'export JSON</button>
+          <button class="btn" id="btn-import">Importer un JSON</button>
+          <button class="btn" id="btn-csvimp">Importer des articles (CSV)</button>
+          <button class="btn danger" id="btn-reset">Vider toutes les données</button>
+        </div>
+        <div class="muted" style="font-size:12px" id="csv-help" hidden>CSV avec une ligne d'en-tête, séparateur « ; » ou « , ». Colonnes reconnues (ordre libre) : <span class="mono">sku, nom, categorie, prix, rop, stock, poids, lien, type</span> (type = composant ou fini). Les SKU déjà existants sont mis à jour, les autres créés. Depuis Excel : Fichier → Enregistrer sous → CSV UTF-8.</div>
+        <textarea id="io" rows="8" class="mono" hidden placeholder="Collez ici un export JSON puis cliquez Charger"></textarea>
+        <div class="row" id="io-actions" hidden><button class="btn" id="io-copy">Copier</button><button class="btn primary" id="io-load">Charger</button><input type="file" id="io-file" accept=".json,.csv,text/csv,application/json"></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<nav class="tabs" id="tabs">
+  <button data-p="dash"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="5" rx="1"/><rect x="13" y="10" width="8" height="11" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/></svg>Tableau</button>
+  <button data-p="scan"><svg viewBox="0 0 24 24"><path d="M4 7V4h3M17 4h3v3M20 17v3h-3M7 20H4v-3"/><path d="M8 8v8M11 8v8M14 8v8M16 8v8"/></svg>Scan</button>
+  <button data-p="stock"><svg viewBox="0 0 24 24"><path d="M3 9l9-5 9 5v10l-9 5-9-5z"/><path d="M3 9l9 5 9-5M12 14v10"/></svg>Stock</button>
+  <button data-p="bundles"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 15h18M8 4v16"/></svg>Bundles</button>
+  <button data-p="orders"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10"/><circle cx="19" cy="17" r="2.5"/></svg>Cmdes</button>
+  <button data-p="journal"><svg viewBox="0 0 24 24"><path d="M5 3h14v18H5z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>Journal</button>
+  <button data-p="more"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>Plus</button>
+</nav>
+
+<div class="toast" id="toast" hidden><span id="toast-msg"></span><button id="toast-undo">Annuler</button></div>
+<div id="modal-root"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.6/JsBarcode.all.min.js"></script>
+<script>
+'use strict';
+/* ============ SEED (import nettoyé de l'Excel) ============ */
+const SEED = {"items":[],"bundles":[],"cats":["Rack","Vidéo","Son","Lumières","Câbles / Hardware","Produits finis"]};
+
+/* ============ STORE (couche de persistance) ============
+   Prototype : localStorage. Version Pi : remplacer load/save par des appels PocketBase. */
+const KEY='stock-atelier-v1';
+const Store={
+  load(){ try{ const s=localStorage.getItem(KEY); return s?JSON.parse(s):null; }catch(e){ return null; } },
+  save(db){ try{ localStorage.setItem(KEY, JSON.stringify(db)); }catch(e){} }
+};
+function freshDb(){
+  const db={items:[],bundles:[],moves:[],orders:[],cats:SEED.cats.slice(),seq:1,buildSeq:0,orderSeq:0};
+  const ts=new Date().toISOString();
+  for(const it of SEED.items){
+    db.items.push({sku:it.sku,name:it.name,desc:'',cat:it.cat,price:it.price,weight:it.weight||0,rop:it.rop,link:it.link||'',type:it.type,target:it.target||0});
+    if(it.stock) db.moves.push({id:db.seq++,ts,sku:it.sku,qty:it.stock,type:'ADJ',ref:'Inventaire initial (import Excel)'});
+  }
+  for(const b of SEED.bundles) db.bundles.push(JSON.parse(JSON.stringify(b)));
+  return db;
+}
+let db=Store.load()||freshDb(); db.orders=db.orders||[]; db.orderSeq=db.orderSeq||0; for(const i of db.items) if(i.type==='finished'&&i.target==null) i.target=0;
+function save(){ Store.save(db); render(); }
+
+/* ============ HELPERS ============ */
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const eur=n=>(Math.round(n*100)/100).toLocaleString('fr-BE',{style:'currency',currency:'EUR'});
+const kg=n=>n?`${(Math.round(n*100)/100).toLocaleString('fr-BE')} kg`:'—';
+const fmtTs=ts=>{const d=new Date(ts);return d.toLocaleDateString('fr-BE',{day:'2-digit',month:'2-digit'})+' '+d.toLocaleTimeString('fr-BE',{hour:'2-digit',minute:'2-digit'});};
+const item=sku=>db.items.find(i=>i.sku===sku);
+const bundle=id=>db.bundles.find(b=>b.id===id);
+const stock=sku=>db.moves.reduce((a,m)=>m.sku===sku?a+m.qty:a,0);
+const stockMap=()=>{const m={};for(const mv of db.moves)m[mv.sku]=(m[mv.sku]||0)+mv.qty;return m;};
+function bundleFor(sku){return db.bundles.find(b=>b.product===sku);}
+function unitValue(sku,depth=0){ // valeur d'un item : prix, ou coût du bundle qui le produit (produit fini)
+  const it=item(sku); if(!it) return 0;
+  if(it.type==='finished' && depth<4){ const b=bundleFor(sku); if(b) return bundleCost(b,depth+1); }
+  return it.price||0;
+}
+function bundleCost(b,depth=0){return b.lines.reduce((a,l)=>a+unitValue(l.sku,depth)*l.qty,0);}
+function unitWeight(sku,depth=0){const it=item(sku);if(!it)return 0;if(it.type==='finished'&&depth<4){const b=bundleFor(sku);if(b)return bundleWeight(b,depth+1);}return it.weight||0;}
+function bundleWeight(b,depth=0){return b.lines.reduce((a,l)=>a+unitWeight(l.sku,depth)*l.qty,0);}
+function buildable(b,sm){ if(!b.lines.length) return 0; return Math.min(...b.lines.map(l=>Math.floor((sm[l.sku]||0)/l.qty))); }
+function addMove(sku,qty,type,ref,note){ const m={id:db.seq++,ts:new Date().toISOString(),sku,qty,type,ref:ref||'',note:note||''}; db.moves.push(m); return m; }
+let toastTimer=null, toastUndo=null;
+function toast(msg,undo){ $('#toast-msg').textContent=msg; toastUndo=undo||null; $('#toast-undo').hidden=!undo; $('#toast').hidden=false; clearTimeout(toastTimer); toastTimer=setTimeout(()=>{$('#toast').hidden=true;},6000); }
+$('#toast-undo').onclick=()=>{ if(toastUndo) toastUndo(); $('#toast').hidden=true; toastUndo=null; };
+
+/* ============ MODAL ============ */
+function openModal(html,wire){ const root=$('#modal-root'); root.innerHTML=`<div class="overlay"><div class="modal" role="dialog" aria-modal="true">${html}</div></div>`; root.querySelector('.overlay').addEventListener('click',e=>{if(e.target.classList.contains('overlay'))closeModal();}); if(wire) wire(root.querySelector('.modal')); const f=root.querySelector('input,select,textarea,button'); if(f) f.focus(); }
+function closeModal(){ $('#modal-root').innerHTML=''; }
+function confirmModal(title,body,okLabel,onOk,danger=true){ openModal(`<h3>${esc(title)}</h3><div>${body}</div><div class="actions"><button class="btn" data-x>Annuler</button><button class="btn ${danger?'danger':'primary'}" data-ok>${esc(okLabel)}</button></div>`,m=>{m.querySelector('[data-x]').onclick=closeModal;m.querySelector('[data-ok]').onclick=()=>{closeModal();onOk();};}); }
+
+/* ============ NAV ============ */
+let page='scan';
+function go(p){ page=p; $$('.page').forEach(s=>s.hidden=s.id!=='p-'+p); $$('nav.tabs button').forEach(b=>b.classList.toggle('active',b.dataset.p===p)); try{localStorage.setItem(KEY+':page',p);}catch(e){} render(); if(p==='scan') setTimeout(()=>$('#scan-input').focus(),50); }
+$('#tabs').addEventListener('click',e=>{const b=e.target.closest('button');if(b)go(b.dataset.p);});
+
+/* ============ RENDER ============ */
+function render(){ renderTop(); if(page==='dash')renderDash(); if(page==='scan')renderScan(); if(page==='stock')renderStock(); if(page==='bundles')renderBundles(); if(page==='orders')renderOrders(); if(page==='journal')renderJournal(); if(page==='more')renderMore(); }
+function renderTop(){ const sm=stockMap(); $('#top-ready').innerHTML=db.items.filter(i=>i.type==='finished').map(i=>{const r=reservedFinished(i.sku);return `<span>${esc(i.name.replace(/\s*\(.*\)$/,''))} <b class="num">${sm[i.sku]||0}</b>${r?`<span class="muted" style="font-size:11px"> · ${r} réservé${r>1?'s':''}</span>`:''}</span>`;}).join('')||'<span class="muted">Aucun produit fini</span>'; }
+function reservedFinished(sku){ return db.orders.filter(o=>o.status==='built'&&bundle(o.bundleId)?.product===sku).length; }
+
+/* ---- Dashboard ---- */
+function renderDash(){
+  const sm=stockMap();
+  $('#dash-date').textContent=new Date().toLocaleDateString('fr-BE',{weekday:'long',day:'numeric',month:'long'});
+  const fin=db.items.filter(i=>i.type==='finished');
+  $('#dash-ready').innerHTML=fin.map(i=>`<div class="r"><b class="num">${sm[i.sku]||0}</b><div class="grow"><div style="font-weight:600">${esc(i.name)}</div><div class="sub muted">${esc(i.sku)} · ${eur(unitValue(i.sku))} pièce${reservedFinished(i.sku)?` · <b>${reservedFinished(i.sku)} réservé${reservedFinished(i.sku)>1?'s':''}</b>`:''} · objectif d'avance ${i.target||0}</div></div><div class="ctl"><button data-adj="${esc(i.sku)}" data-d="1" aria-label="Plus un">+</button><button data-adj="${esc(i.sku)}" data-d="-1" aria-label="Moins un">−</button></div></div>`).join('')||'<div class="empty">Créez un item de type "produit fini" dans Stock pour avoir un compteur ici.</div>';
+  $$('#dash-ready [data-adj]').forEach(b=>b.onclick=()=>{const sku=b.dataset.adj,d=+b.dataset.d; if(d<0&&(sm[sku]||0)<=0)return; const m=addMove(sku,d,'ADJ','Ajustement manuel (tableau de bord)'); save(); toast(`${sku} ${d>0?'+':''}${d} → ${stock(sku)}`,()=>{db.moves=db.moves.filter(x=>x.id!==m.id);save();});});
+  let vComp=0,vFin=0,nLow=0,units=0;
+  for(const i of db.items){const s=sm[i.sku]||0; units+=Math.max(s,0); if(i.type==='finished')vFin+=s*unitValue(i.sku); else vComp+=s*(i.price||0); if(i.type!=='finished'&&s<i.rop)nLow++;}
+  $('#dash-tiles').innerHTML=`<div class="tile accent"><span class="eyebrow">Valeur totale immobilisée</span><b class="num">${eur(vComp+vFin)}</b></div><div class="tile"><span class="eyebrow">Composants en armoire</span><b class="num">${eur(vComp)}</b></div><div class="tile"><span class="eyebrow">Produits finis prêts</span><b class="num">${eur(vFin)}</b></div><div class="tile"><span class="eyebrow">Articles · unités</span><b class="num">${db.items.length} · ${units}</b></div>`;
+  renderCharts(sm);
+  const low=db.items.filter(i=>i.type!=='finished'&&(sm[i.sku]||0)<i.rop);
+  $('#low-count').textContent=low.length+' article'+(low.length>1?'s':'');
+  $('#low-table tbody').innerHTML=low.map(i=>`<tr class="low"><td class="mono">${esc(i.sku)}</td><td>${esc(i.name)}</td><td class="r num stockcell">${sm[i.sku]||0}</td><td class="r num">${i.rop}</td><td class="r num"><b>${i.rop-(sm[i.sku]||0)}</b></td><td>${i.link.startsWith('http')?`<a href="${esc(i.link)}" target="_blank" rel="noopener">commander</a>`:`<span class="muted">${esc(i.link.slice(0,30))}</span>`}</td></tr>`).join('')||'<tr><td colspan="6" class="empty">Rien sous le seuil.</td></tr>';
+  $('#recent-table tbody').innerHTML=db.moves.slice(-12).reverse().map(m=>`<tr><td class="num">${fmtTs(m.ts)}</td><td>${typeChip(m.type)}</td><td class="mono">${esc(m.sku)}</td><td>${esc(item(m.sku)?.name||'—')}</td><td class="r num" style="color:${m.qty>0?'var(--in)':'var(--out)'};font-weight:700">${m.qty>0?'+':''}${m.qty}</td><td class="muted">${esc(m.ref)}</td></tr>`).join('')||'<tr><td colspan="6" class="empty">Aucun mouvement.</td></tr>';
+}
+function renderCharts(sm){
+  const cats=db.cats.filter(c=>db.items.some(i=>i.cat===c&&i.type!=='finished'));
+  const rows=cats.map(c=>{const its=db.items.filter(i=>i.cat===c&&i.type!=='finished');let ok=0,low=0,zero=0,val=0;for(const i of its){const s=sm[i.sku]||0;val+=s*(i.price||0);if(s<=0)zero++;else if(s<i.rop)low++;else ok++;}return {c,ok,low,zero,n:its.length,val};});
+  // status chart : barres horizontales empilées, couleurs de statut
+  const W=400,LW=96,RH=24,G=8,maxN=Math.max(1,...rows.map(r=>r.n)),PW=W-LW-34;
+  let H=rows.length*(RH+G)+4;
+  let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Articles par catégorie et état de stock">`;
+  rows.forEach((r,k)=>{const y=k*(RH+G)+2;let x=LW;s+=`<text x="${LW-8}" y="${y+RH/2+4}" text-anchor="end" class="m">${esc(r.c.length>14?r.c.slice(0,13)+'…':r.c)}</text>`;
+    for(const [key,col] of [['ok','var(--in)'],['low','var(--warn)'],['zero','var(--out)']]){const v=r[key];if(!v)continue;const w=v/maxN*PW;s+=`<rect class="seg" x="${x}" y="${y}" width="${Math.max(w-2,1)}" height="${RH}" rx="4" fill="${col}"><title>${esc(r.c)} · ${{ok:'au-dessus du seuil',low:'sous le seuil',zero:'épuisés'}[key]} : ${v}</title></rect>`;if(w>22)s+=`<text x="${x+w/2-1}" y="${y+RH/2+4}" text-anchor="middle" style="fill:#fff;font-weight:600">${v}</text>`;x+=w;}
+    s+=`<text x="${x+6}" y="${y+RH/2+4}" class="m">${r.n}</text>`;});
+  s+='</svg>';
+  $('#chart-status').innerHTML=s+`<div class="legend"><span><i style="background:var(--in)"></i>Au-dessus du seuil</span><span><i style="background:var(--warn)"></i>Sous le seuil</span><span><i style="background:var(--out)"></i>Épuisé</span></div>`;
+  // value chart : barres horizontales triées, une seule teinte
+  const vr=rows.slice().sort((a,b)=>b.val-a.val),maxV=Math.max(1,...vr.map(r=>r.val)),tot=vr.reduce((a,r)=>a+r.val,0),PW2=W-LW-118;
+  H=vr.length*(RH+G)+4;
+  let v=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Valeur du stock par catégorie">`;
+  vr.forEach((r,k)=>{const y=k*(RH+G)+2,w=r.val/maxV*PW2;v+=`<text x="${LW-8}" y="${y+RH/2+4}" text-anchor="end" class="m">${esc(r.c.length>14?r.c.slice(0,13)+'…':r.c)}</text><rect class="seg" x="${LW}" y="${y}" width="${Math.max(w,2)}" height="${RH}" rx="4" fill="var(--accent)"><title>${esc(r.c)} : ${eur(r.val)}</title></rect><text x="${LW+w+8}" y="${y+RH/2+4}" style="font-variant-numeric:tabular-nums">${eur(r.val)} <tspan class="m">${tot?Math.round(r.val/tot*100):0} %</tspan></text>`;});
+  v+='</svg>';
+  $('#chart-value').innerHTML=v;
+}
+function typeChip(t){const l={IN:['in','Entrée'],OUT:['out','Sortie'],BUILD:['build','Build'],ADJ:['','Ajust.']}[t]||['',t];return `<span class="chip ${l[0]}">${l[1]}</span>`;}
+
+/* ---- Scan ---- */
+let mode='IN'; let build=null; // build = {bundleId, scanned:{sku:n}}
+$$('.modes button').forEach(b=>b.onclick=()=>setMode(b.dataset.m));
+function setMode(m){ mode=m; if(m!=='BUILD'){build=null;} renderScan(); $('#scan-input').focus(); }
+function renderScan(){
+  $$('.modes button').forEach(b=>b.classList.toggle('on',b.dataset.m===mode));
+  const bp=$('#build-panel');
+  if(mode==='BUILD'){ bp.hidden=false; renderBuildPanel(); } else { bp.hidden=true; }
+  $('#scan-input').placeholder = mode==='BUILD' && !build ? 'Scannez un code bundle (BND-…) ou choisissez ci-dessus' : 'SKU…';
+  renderSugg('');
+}
+function renderSugg(q){
+  const box=$('#scan-sugg'); q=q.trim().toUpperCase();
+  if(!q||q.length<2){box.innerHTML='';return;}
+  const hits=db.items.filter(i=>i.sku.toUpperCase().includes(q)||i.name.toUpperCase().includes(q)).slice(0,8);
+  box.innerHTML=hits.map(i=>`<button data-s="${esc(i.sku)}"><span class="mono">${esc(i.sku)}</span> ${esc(i.name)}</button>`).join('');
+  $$('#scan-sugg button').forEach(b=>b.onclick=()=>{handleCode(b.dataset.s);});
+}
+$('#scan-input').addEventListener('input',e=>renderSugg(e.target.value));
+$('#scan-input').addEventListener('keydown',e=>{ if(e.key==='Enter'){e.preventDefault();submitScan();} });
+$('#scan-go').onclick=submitScan;
+function submitScan(){ const v=$('#scan-input').value.trim(); if(!v)return; $('#scan-input').value=''; renderSugg(''); handleCode(v); }
+// Scanner USB (clavier) : si on est sur l'onglet Scan et que le focus n'est pas dans un champ, on ramène le focus sur l'input.
+document.addEventListener('keydown',e=>{ if(page!=='scan')return; const t=e.target; if(t&&(t.tagName==='INPUT'||t.tagName==='TEXTAREA'||t.tagName==='SELECT'))return; if($('#modal-root').children.length)return; if(e.key.length===1||e.key==='Enter'){ $('#scan-input').focus(); } });
+
+function showLast(cls,big,delta,sub){ const el=$('#lastscan'); el.className='lastscan '+cls; el.innerHTML=`<div class="big">${big}</div>${delta?`<div class="delta">${delta}</div>`:''}${sub?`<div class="muted">${sub}</div>`:''}`; }
+
+function handleCode(raw){
+  const code=raw.trim().toUpperCase();
+  // commandes
+  if(code==='CMD-IN'){setMode('IN');showLast('in','Mode ENTRÉE','', 'Les scans suivants ajoutent au stock.');return;}
+  if(code==='CMD-OUT'){setMode('OUT');showLast('out','Mode SORTIE','', 'Les scans suivants retirent du stock.');return;}
+  if(code==='CMD-BUILD'){setMode('BUILD');showLast('build','Mode BUILD','', 'Scannez un code bundle.');return;}
+  if(code==='CMD-UNDO'){ if(toastUndo){toastUndo();$('#toast').hidden=true;toastUndo=null;showLast('','Dernier mouvement annulé');} else showLast('err','Rien à annuler'); return; }
+  if(code.startsWith('BND-')){ const b=db.bundles.find(x=>x.id.toUpperCase()===code.slice(4)); if(!b){showLast('err',`Bundle inconnu`,'',esc(code));return;} setMode('BUILD'); startBuild(b.id); return; }
+  const qty=Math.max(1,parseInt($('#scan-qty').value)||1); $('#scan-qty').value=1;
+  const it=item(code);
+  if(!it){ showLast('err',`SKU inconnu : ${esc(code)}`,'',`<button class="btn small" id="mk-unknown">Créer cet article</button> <span>ou vérifiez l'étiquette.</span>`); $('#mk-unknown').onclick=()=>itemForm(null,code); return; }
+  if(mode==='BUILD'){ buildScan(it,qty); return; }
+  const q=mode==='IN'?qty:-qty;
+  if(mode==='OUT'&&stock(it.sku)+q<0){ showLast('err',`${esc(it.sku)} — stock insuffisant`,'',`Stock actuel : ${stock(it.sku)}. Sortie refusée. Faites un ajustement dans Stock si l'armoire dit autre chose.`); return; }
+  const m=addMove(it.sku,q,mode,mode==='IN'?'Réception':'Sortie manuelle'); save();
+  const now=stock(it.sku);
+  showLast(mode.toLowerCase(),esc(it.name),`${q>0?'+':''}${q} → <span class="num">${now}</span>`,`${esc(it.sku)}${now<it.rop&&it.type!=='finished'?` · <span style="color:var(--out);font-weight:700">sous le seuil (ROP ${it.rop})</span>`:''}`);
+  toast(`${it.sku} ${q>0?'+':''}${q} (reste ${now})`,()=>{db.moves=db.moves.filter(x=>x.id!==m.id);save();showLast('','Annulé',`${esc(it.sku)} → ${stock(it.sku)}`);});
+}
+
+/* ---- Build ---- */
+function startBuild(id,orderId){ build={bundleId:id,scanned:{},orderId:orderId||null}; mode='BUILD'; renderScan(); const b=bundle(id); const o=orderId?order(orderId):null; showLast('build',esc(b.name)+(o?` — ${esc(o.client)}`:''),'',`${b.lines.length} lignes · scannez chaque pièce en la prenant, cochez-la à la main, ou "Construire directement".`); }
+function buildScan(it,qty){
+  if(!build){ showLast('err','Choisissez d\'abord un bundle','','Scannez son code BND-… ou cliquez dessus ci-dessus.'); return; }
+  const b=bundle(build.bundleId); const line=b.lines.find(l=>l.sku===it.sku);
+  if(!line){ showLast('err',`${esc(it.sku)} n'est pas dans « ${esc(b.name)} »`,'','Pièce ignorée. Vérifiez ce que vous avez pris.'); return; }
+  const have=build.scanned[it.sku]||0;
+  if(have+qty>line.qty){ showLast('err',`${esc(it.sku)} : déjà ${have}/${line.qty}`,'',`Ce bundle n'en demande que ${line.qty}. Scan ignoré.`); return; }
+  build.scanned[it.sku]=have+qty; renderBuildPanel();
+  const total=b.lines.reduce((a,l)=>a+l.qty,0), done=Object.values(build.scanned).reduce((a,v)=>a+v,0);
+  showLast('build',esc(it.name),`${build.scanned[it.sku]} / ${line.qty}`,`${done}/${total} pièces scannées${done===total?' — tout y est, cliquez Terminer.':''}`);
+}
+function renderBuildPanel(){
+  const bp=$('#build-panel'); const sm=stockMap();
+  if(!build){ bp.innerHTML=`<div class="eyebrow" style="margin-bottom:6px">Choisir un bundle</div><div class="sugg">${db.bundles.map(b=>`<button data-b="${esc(b.id)}"><b>${esc(b.name)}</b> <span class="mono">×${buildable(b,sm)}</span></button>`).join('')||'<span class="muted">Aucun bundle. Créez-en un dans l\'onglet Bundles.</span>'}</div>`; $$('#build-panel [data-b]').forEach(x=>x.onclick=()=>startBuild(x.dataset.b)); return; }
+  const b=bundle(build.bundleId); const total=b.lines.reduce((a,l)=>a+l.qty,0), done=Object.values(build.scanned).reduce((a,v)=>a+v,0);
+  const missing=b.lines.filter(l=>(sm[l.sku]||0)<l.qty);
+  const ord=build.orderId?order(build.orderId):null;
+  bp.innerHTML=`<div class="row" style="margin-bottom:8px"><h3 class="grow">${esc(b.name)}${ord?` <span class="chip pending">pour ${esc(ord.client)}</span>`:''} <span class="muted" style="font-family:var(--body);font-size:13px;font-weight:400">→ produit ${b.product?esc(b.product):'(aucun)'}</span></h3><button class="btn small" id="b-cancel">Abandonner</button></div>
+  <div class="progress" style="margin-bottom:8px"><i style="width:${total?Math.round(done/total*100):0}%"></i></div>
+  <div class="chk">${b.lines.map(l=>{const it=item(l.sku);const s=sm[l.sku]||0;const sc=build.scanned[l.sku]||0;const cls=sc>=l.qty?'done':(s<l.qty?'miss':'ok');return `<div class="l ${cls}"><button class="mark" data-tick="${esc(l.sku)}" aria-label="Cocher ${esc(l.sku)}" title="Cocher / décocher">${sc>=l.qty?'✓':''}</button><div><div style="font-weight:600">${esc(it?.name||l.sku)}</div><div class="sub muted mono">${esc(l.sku)} · en stock : ${s}${s<l.qty?' <b style="color:var(--out)">manque '+(l.qty-s)+'</b>':''}</div></div><div class="cnt num">${sc} / ${l.qty}</div></div>`;}).join('')}</div>
+  <div class="row" style="margin-top:10px;justify-content:flex-end">
+    ${missing.length?`<span class="chip out">${missing.length} composant${missing.length>1?'s':''} manquant${missing.length>1?'s':''}</span>`:''}
+    <button class="btn" id="b-quick" ${missing.length?'disabled':''}>Construire directement</button>
+    <button class="btn primary" id="b-finish" ${done<total||missing.length?'disabled':''}>Terminer le build</button>
+    ${missing.length?`<button class="btn danger small" id="b-force">Forcer malgré le manque</button>`:''}
+  </div>`;
+  $('#b-cancel').onclick=()=>{build=null;renderScan();showLast('','Build abandonné','','Aucun mouvement enregistré.');};
+  $$('#build-panel [data-tick]').forEach(x=>x.onclick=()=>{const l=b.lines.find(z=>z.sku===x.dataset.tick);const sc=build.scanned[l.sku]||0;build.scanned[l.sku]=sc>=l.qty?0:l.qty;renderBuildPanel();});
+  $('#b-quick').onclick=()=>finishBuild(b,false);
+  $('#b-finish').onclick=()=>finishBuild(b,false);
+  const f=$('#b-force'); if(f) f.onclick=()=>confirmModal('Forcer le build ?',`Le stock passera en négatif pour : <b>${missing.map(l=>esc(l.sku)).join(', ')}</b>. À corriger ensuite par une entrée.`,'Forcer',()=>finishBuild(b,true));
+}
+function finishBuild(b,force){
+  const sm=stockMap(); const missing=b.lines.filter(l=>(sm[l.sku]||0)<l.qty);
+  if(missing.length&&!force){ showLast('err','Composants manquants','',missing.map(l=>`${esc(l.sku)} (manque ${l.qty-(sm[l.sku]||0)})`).join(', ')); return; }
+  db.buildSeq++; const ord=build&&build.orderId?order(build.orderId):null; const ref=`Build #${db.buildSeq} ${b.name}${ord?' — '+ord.client:''}`; const ids=[];
+  for(const l of b.lines) ids.push(addMove(l.sku,-l.qty,'BUILD',ref).id);
+  if(b.product&&item(b.product)) ids.push(addMove(b.product,1,'BUILD',ref).id);
+  if(ord){ ord.status=b.product?'built':'delivered'; ord.builtAt=new Date().toISOString(); ord.buildRef=ref; if(!b.product) ord.deliveredAt=ord.builtAt; }
+  build=null; save();
+  showLast('build',`${esc(b.name)} construit${ord?' pour '+esc(ord.client):''}`,b.product?`${esc(b.product)} → <span class="num">${stock(b.product)}</span> prêt${stock(b.product)>1?'s':''}`:'',`${ref} · ${b.lines.length} composants sortis.`);
+  toast(ref,()=>{db.moves=db.moves.filter(x=>!ids.includes(x.id));db.buildSeq--;if(ord){ord.status='pending';delete ord.builtAt;delete ord.buildRef;delete ord.deliveredAt;}save();showLast('','Build annulé');});
+}
+
+/* ---- Stock ---- */
+function catOptions(sel,withAll){ return (withAll?'<option value="">Toutes catégories</option>':'')+db.cats.map(c=>`<option value="${esc(c)}" ${sel===c?'selected':''}>${esc(c)}</option>`).join(''); }
+let stockFilter={q:'',cat:'',low:false};
+$('#stock-search').oninput=e=>{stockFilter.q=e.target.value;renderStock();};
+$('#stock-cat').onchange=e=>{stockFilter.cat=e.target.value;renderStock();};
+$('#stock-low').onchange=e=>{stockFilter.low=e.target.checked;renderStock();};
+$('#btn-new-item').onclick=()=>itemForm(null);
+function renderStock(){
+  const sel=$('#stock-cat'); if(sel.options.length!==db.cats.length+1) sel.innerHTML=catOptions(stockFilter.cat,true);
+  const sm=stockMap(); const q=stockFilter.q.trim().toUpperCase();
+  const rows=db.items.filter(i=>(!q||i.sku.toUpperCase().includes(q)||i.name.toUpperCase().includes(q))&&(!stockFilter.cat||i.cat===stockFilter.cat)&&(!stockFilter.low||(i.type!=='finished'&&(sm[i.sku]||0)<i.rop)));
+  let tv=0;
+  $('#stock-table tbody').innerHTML=rows.map(i=>{const s=sm[i.sku]||0;const v=s*unitValue(i.sku);tv+=v;const low=i.type!=='finished'&&s<i.rop;return `<tr data-sku="${esc(i.sku)}" draggable="true" class="${low?'low':''}"><td><span class="handle" title="Glisser pour réordonner">☰</span></td><td style="min-width:190px"><div class="name">${esc(i.name)}</div><div class="sub"><span class="mono">${esc(i.sku)}</span> · ${esc(i.cat)}${i.type==='finished'?' · produit fini':''}</div></td><td class="r num stockcell">${s}</td><td class="r num">${i.rop}</td><td class="r num">${eur(unitValue(i.sku))}</td><td class="r num">${eur(v)}</td><td class="ord" style="white-space:nowrap"><button data-mv="-1" title="Monter">▲</button><button data-mv="1" title="Descendre">▼</button></td></tr>`;}).join('')||'<tr><td colspan="7" class="empty">Aucun article.</td></tr>';
+  $('#stock-foot').innerHTML=`<span>${rows.length} article${rows.length>1?'s':''}</span><span>· valeur affichée ${eur(tv)}</span>`;
+  const tb=$('#stock-table tbody');
+  tb.querySelectorAll('tr[data-sku]').forEach(tr=>{
+    tr.addEventListener('click',e=>{ if(e.target.closest('button,.handle'))return; itemForm(tr.dataset.sku); });
+    tr.querySelectorAll('[data-mv]').forEach(b=>b.onclick=e=>{e.stopPropagation();moveItem(tr.dataset.sku,+b.dataset.mv);});
+    tr.addEventListener('dragstart',e=>{tr.classList.add('dragging');e.dataTransfer.setData('text/plain',tr.dataset.sku);e.dataTransfer.effectAllowed='move';});
+    tr.addEventListener('dragend',()=>tr.classList.remove('dragging'));
+    tr.addEventListener('dragover',e=>{e.preventDefault();tr.classList.add('over');});
+    tr.addEventListener('dragleave',()=>tr.classList.remove('over'));
+    tr.addEventListener('drop',e=>{e.preventDefault();tr.classList.remove('over');const from=e.dataTransfer.getData('text/plain');if(from&&from!==tr.dataset.sku)placeBefore(from,tr.dataset.sku);});
+  });
+}
+function moveItem(sku,dir){ const i=db.items.findIndex(x=>x.sku===sku); const j=i+dir; if(j<0||j>=db.items.length)return; [db.items[i],db.items[j]]=[db.items[j],db.items[i]]; save(); }
+function placeBefore(sku,beforeSku){ const i=db.items.findIndex(x=>x.sku===sku); const [it]=db.items.splice(i,1); const j=db.items.findIndex(x=>x.sku===beforeSku); db.items.splice(j,0,it); save(); }
+
+function itemForm(sku,presetSku){
+  const it=sku?item(sku):{sku:presetSku||'',name:'',desc:'',cat:db.cats[0]||'',price:0,weight:0,rop:1,link:'',type:'component'};
+  const isNew=!sku; const s=sku?stock(sku):0;
+  openModal(`<h3>${isNew?'Nouvel item':'Modifier '+esc(it.sku)}</h3>
+  <div class="grid2">
+    <label class="f">SKU (= code-barre)<input type="text" id="f-sku" value="${esc(it.sku)}" ${isNew?'':'readonly'} class="mono" autocapitalize="characters"></label>
+    <label class="f">Type<select id="f-type"><option value="component" ${it.type==='component'?'selected':''}>Composant</option><option value="finished" ${it.type==='finished'?'selected':''}>Produit fini (rack monté…)</option></select></label>
+    <label class="f" style="grid-column:1/-1">Titre<input type="text" id="f-name" value="${esc(it.name)}"></label>
+    <label class="f" style="grid-column:1/-1">Description<textarea id="f-desc" rows="2">${esc(it.desc)}</textarea></label>
+    <label class="f">Catégorie<select id="f-cat">${catOptions(it.cat,false)}</select></label>
+    <label class="f">Seuil de réassort (ROP)<input type="number" id="f-rop" value="${it.rop}" min="0"></label>
+    <label class="f">Prix unitaire (€)<input type="number" id="f-price" value="${it.price}" min="0" step="0.01"></label>
+    <label class="f">Poids (kg)<input type="number" id="f-weight" value="${it.weight}" min="0" step="0.01"></label>
+    <label class="f" id="f-target-wrap" ${it.type==='finished'?'':'hidden'}>Stock d'avance visé (produit fini)<input type="number" id="f-target" value="${it.target||0}" min="0"></label>
+    <label class="f" style="grid-column:1/-1">Lien fournisseur<input type="text" id="f-link" value="${esc(it.link)}"></label>
+    ${isNew?`<label class="f">Stock initial<input type="number" id="f-stock" value="0" min="0"></label>`:`<label class="f">Stock actuel (ajuster)<input type="number" id="f-stock" value="${s}"></label>`}
+  </div>
+  <div class="muted" style="font-size:12px">${isNew?'Le stock initial est enregistré comme un ajustement dans le journal.':'Modifier le stock crée un mouvement "Ajustement" (inventaire) dans le journal, la différence est tracée.'}</div>
+  <div class="actions">${isNew?'':'<button class="btn danger left" id="f-del">Supprimer</button>'}<button class="btn" id="f-x">Annuler</button><button class="btn primary" id="f-ok">${isNew?'Créer':'Enregistrer'}</button></div>`,m=>{
+    m.querySelector('#f-x').onclick=closeModal;
+    m.querySelector('#f-type').onchange=e=>{m.querySelector('#f-target-wrap').hidden=e.target.value!=='finished';};
+    m.querySelector('#f-ok').onclick=()=>{
+      const nsku=m.querySelector('#f-sku').value.trim().toUpperCase();
+      if(!nsku){m.querySelector('#f-sku').focus();return;}
+      if(isNew&&item(nsku)){toast('Ce SKU existe déjà');return;}
+      if(/^(CMD|BND)-/.test(nsku)){toast('Les préfixes CMD- et BND- sont réservés');return;}
+      const o=isNew?{sku:nsku}:it;
+      o.type=m.querySelector('#f-type').value; o.target=+m.querySelector('#f-target').value||0; o.name=m.querySelector('#f-name').value.trim(); o.desc=m.querySelector('#f-desc').value.trim(); o.cat=m.querySelector('#f-cat').value; o.rop=+m.querySelector('#f-rop').value||0; o.price=+m.querySelector('#f-price').value||0; o.weight=+m.querySelector('#f-weight').value||0; o.link=m.querySelector('#f-link').value.trim();
+      const ns=+m.querySelector('#f-stock').value||0;
+      if(isNew){ db.items.push(o); if(ns) addMove(nsku,ns,'ADJ','Stock initial à la création'); }
+      else if(ns!==s){ addMove(o.sku,ns-s,'ADJ','Inventaire (correction manuelle)'); }
+      closeModal(); save(); toast(isNew?`${nsku} créé`:`${o.sku} enregistré`);
+    };
+    const d=m.querySelector('#f-del'); if(d) d.onclick=()=>{
+      const used=db.bundles.filter(b=>b.lines.some(l=>l.sku===it.sku)||b.product===it.sku);
+      confirmModal(`Supprimer ${it.sku} ?`,`<p>« ${esc(it.name)} » sera retiré de la liste${used.length?` et de ${used.length} bundle${used.length>1?'s':''} (${used.map(b=>esc(b.name)).join(', ')})`:''}.</p><p class="muted">Ses ${db.moves.filter(x=>x.sku===it.sku).length} mouvements restent dans le journal.</p>`,'Supprimer',()=>{
+        db.items=db.items.filter(x=>x.sku!==it.sku);
+        for(const b of db.bundles){ b.lines=b.lines.filter(l=>l.sku!==it.sku); if(b.product===it.sku)b.product=''; }
+        save(); toast(`${it.sku} supprimé`);
+      });
+    };
+  });
+}
+
+/* ---- Bundles ---- */
+$('#btn-new-bundle').onclick=()=>bundleForm(null);
+function renderBundles(){
+  const sm=stockMap();
+  $('#bcards').innerHTML=db.bundles.map(b=>{const n=buildable(b,sm);const prod=b.product?item(b.product):null;return `<div class="bcard"><div class="row"><h3 class="grow">${esc(b.name)}</h3><span class="chip mono">BND-${esc(b.id.toUpperCase())}</span></div>
+    <div class="muted" style="font-size:13px">${esc(b.desc||'')}</div>
+    <div class="muted" style="font-size:13px">${b.lines.length} lignes · ${b.lines.reduce((a,l)=>a+l.qty,0)} pièces${prod?` · produit <b>${esc(prod.name)}</b> (${sm[prod.sku]||0} prêt${(sm[prod.sku]||0)>1?'s':''})`:''}</div>
+    <div class="stats"><div>Coût<b class="num">${eur(bundleCost(b))}</b></div><div>Poids<b class="num">${kg(bundleWeight(b))}</b></div><div>Constructible<b class="num ${n===0?'zero':''}">× ${n}</b></div></div>
+    <div class="row" style="justify-content:flex-end"><button class="btn small" data-edit="${esc(b.id)}">Modifier</button><button class="btn small primary" data-build="${esc(b.id)}">Construire</button></div></div>`;}).join('')||'<div class="empty">Aucun bundle. Cliquez « Nouveau bundle ».</div>';
+  $$('#bcards [data-edit]').forEach(x=>x.onclick=()=>bundleForm(x.dataset.edit));
+  $$('#bcards [data-build]').forEach(x=>x.onclick=()=>{go('scan');startBuild(x.dataset.build);});
+}
+function bundleForm(id){
+  const b=id?bundle(id):{id:'b'+Date.now().toString(36),name:'',desc:'',product:'',lines:[]};
+  const draft=JSON.parse(JSON.stringify(b)); const isNew=!id;
+  const fin=db.items.filter(i=>i.type==='finished');
+  const render=()=>{
+    const m=$('#modal-root .modal'); const sm=stockMap();
+    m.querySelector('#bl').innerHTML=draft.lines.map((l,i)=>{const it=item(l.sku);return `<div class="ln"><div><div style="font-weight:600">${esc(it?.name||'?')}</div><div class="sub muted mono">${esc(l.sku)} · stock ${sm[l.sku]||0}${it?.type==='finished'?' · produit fini':''}</div></div><input type="number" min="1" value="${l.qty}" data-q="${i}" aria-label="Quantité"><div class="ord"><button data-up="${i}" title="Monter">▲</button><button data-dn="${i}" title="Descendre">▼</button><button data-rm="${i}" title="Retirer" style="color:var(--out)">✕</button></div></div>`;}).join('')||'<div class="muted">Aucune ligne. Ajoutez des articles ci-dessous.</div>';
+    m.querySelector('#b-tot').textContent=`${draft.lines.reduce((a,l)=>a+l.qty,0)} pièces · ${eur(bundleCost(draft))} · ${kg(bundleWeight(draft))} · constructible × ${buildable(draft,sm)}`;
+    m.querySelectorAll('[data-q]').forEach(x=>x.onchange=()=>{draft.lines[+x.dataset.q].qty=Math.max(1,+x.value||1);render();});
+    m.querySelectorAll('[data-rm]').forEach(x=>x.onclick=()=>{draft.lines.splice(+x.dataset.rm,1);render();});
+    m.querySelectorAll('[data-up]').forEach(x=>x.onclick=()=>{const i=+x.dataset.up;if(i>0){[draft.lines[i-1],draft.lines[i]]=[draft.lines[i],draft.lines[i-1]];render();}});
+    m.querySelectorAll('[data-dn]').forEach(x=>x.onclick=()=>{const i=+x.dataset.dn;if(i<draft.lines.length-1){[draft.lines[i+1],draft.lines[i]]=[draft.lines[i],draft.lines[i+1]];render();}});
+  };
+  openModal(`<h3>${isNew?'Nouveau bundle':'Modifier « '+esc(b.name)+' »'}</h3>
+  <div class="grid2">
+    <label class="f">Nom<input type="text" id="b-name" value="${esc(draft.name)}" placeholder="Rack Pro, Pack caméra…"></label>
+    <label class="f">Produit fini créé par le build<select id="b-prod"><option value="">Aucun (juste une sortie groupée)</option>${fin.map(i=>`<option value="${esc(i.sku)}" ${draft.product===i.sku?'selected':''}>${esc(i.name)} (${esc(i.sku)})</option>`).join('')}</select></label>
+    <label class="f" style="grid-column:1/-1">Description<input type="text" id="b-desc" value="${esc(draft.desc||'')}"></label>
+  </div>
+  <div class="eyebrow">Composants</div>
+  <div class="lines" id="bl"></div>
+  <div class="row"><input type="text" id="b-add" placeholder="Ajouter : tapez un SKU ou un nom…" class="grow" autocomplete="off"><input type="number" id="b-addq" value="1" min="1" style="width:70px" aria-label="Quantité"></div>
+  <div class="sugg" id="b-sugg"></div>
+  <div class="muted num" id="b-tot" style="font-size:13px"></div>
+  <div class="actions">${isNew?'':'<button class="btn danger left" id="b-del">Supprimer le bundle</button>'}<button class="btn" id="b-x">Annuler</button><button class="btn primary" id="b-ok">${isNew?'Créer':'Enregistrer'}</button></div>`,m=>{
+    render();
+    const addInput=m.querySelector('#b-add');
+    const addLine=sku=>{const q=Math.max(1,+m.querySelector('#b-addq').value||1);const ex=draft.lines.find(l=>l.sku===sku);if(ex)ex.qty+=q;else draft.lines.push({sku,qty:q});addInput.value='';m.querySelector('#b-sugg').innerHTML='';m.querySelector('#b-addq').value=1;render();addInput.focus();};
+    addInput.oninput=()=>{const q=addInput.value.trim().toUpperCase();const box=m.querySelector('#b-sugg');if(q.length<2){box.innerHTML='';return;}const hits=db.items.filter(i=>i.sku.toUpperCase().includes(q)||i.name.toUpperCase().includes(q)).slice(0,8);box.innerHTML=hits.map(i=>`<button data-s="${esc(i.sku)}"><span class="mono">${esc(i.sku)}</span> ${esc(i.name)}</button>`).join('');box.querySelectorAll('button').forEach(x=>x.onclick=()=>addLine(x.dataset.s));};
+    addInput.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();const v=addInput.value.trim().toUpperCase();if(item(v))addLine(v);else{const f=m.querySelector('#b-sugg button');if(f)f.click();}}};
+    m.querySelector('#b-x').onclick=closeModal;
+    m.querySelector('#b-ok').onclick=()=>{
+      draft.name=m.querySelector('#b-name').value.trim(); if(!draft.name){m.querySelector('#b-name').focus();return;}
+      draft.desc=m.querySelector('#b-desc').value.trim(); draft.product=m.querySelector('#b-prod').value;
+      if(draft.product&&draft.lines.some(l=>l.sku===draft.product)){toast('Un bundle ne peut pas contenir le produit qu\'il fabrique');return;}
+      if(isNew) db.bundles.push(draft); else Object.assign(b,draft);
+      closeModal(); save(); toast(`Bundle « ${draft.name} » enregistré`);
+    };
+    const d=m.querySelector('#b-del'); if(d) d.onclick=()=>confirmModal(`Supprimer « ${b.name} » ?`,'<p>Les mouvements déjà enregistrés restent dans le journal.</p>','Supprimer',()=>{db.bundles=db.bundles.filter(x=>x.id!==b.id);save();toast('Bundle supprimé');});
+  });
+}
+
+/* ---- Commandes ---- */
+const order=id=>db.orders.find(o=>o.id===id);
+$('#btn-new-order').onclick=()=>orderForm();
+function orderForm(){
+  openModal(`<h3>Nouvelle commande</h3>
+  <div class="grid2">
+    <label class="f">Client<input type="text" id="o-client" placeholder="Le Quotidien, Vosges…"></label>
+    <label class="f">Bundle<select id="o-bundle">${db.bundles.map(b=>`<option value="${esc(b.id)}">${esc(b.name)}</option>`).join('')}</select></label>
+    <label class="f">Quantité<input type="number" id="o-qty" value="1" min="1"></label>
+    <label class="f">Échéance (optionnel)<input type="date" id="o-due"></label>
+    <label class="f" style="grid-column:1/-1">Note<input type="text" id="o-note" placeholder="Adresse, particularités…"></label>
+  </div>
+  <div class="muted" style="font-size:12px">Une quantité de 3 crée 3 commandes distinctes (1/3, 2/3, 3/3) : chaque rack se construit et se livre séparément.</div>
+  <div class="actions"><button class="btn" id="o-x">Annuler</button><button class="btn primary" id="o-ok">Créer</button></div>`,m=>{
+    m.querySelector('#o-x').onclick=closeModal;
+    m.querySelector('#o-ok').onclick=()=>{
+      const client=m.querySelector('#o-client').value.trim(); if(!client){m.querySelector('#o-client').focus();return;}
+      const bid=m.querySelector('#o-bundle').value; if(!bid){toast('Créez d\'abord un bundle');return;}
+      const n=Math.max(1,+m.querySelector('#o-qty').value||1); const due=m.querySelector('#o-due').value||''; const note=m.querySelector('#o-note').value.trim();
+      for(let k=1;k<=n;k++){ db.orderSeq++; db.orders.push({id:'o'+db.orderSeq,num:db.orderSeq,client:client+(n>1?` ${k}/${n}`:''),bundleId:bid,status:'pending',createdAt:new Date().toISOString(),due,note}); }
+      closeModal(); save(); toast(`${n} commande${n>1?'s':''} créée${n>1?'s':''} pour ${client}`);
+    };
+  });
+}
+// Besoins : explose les bundles en attente + l'objectif de stock d'avance, en consommant d'abord les produits finis disponibles.
+function computeNeeds(){
+  const avail=stockMap(); for(const i of db.items) if(i.type==='finished'){ avail[i.sku]=(avail[i.sku]||0)-reservedFinished(i.sku); }
+  const demand={}; const why={};
+  function explode(sku,qty,src,depth){ if(qty<=0||depth>5)return; const it=item(sku); if(!it)return;
+    if(it.type==='finished'&&bundleFor(sku)){ const use=Math.min(Math.max(avail[sku]||0,0),qty); avail[sku]=(avail[sku]||0)-use; const rest=qty-use; if(rest>0){ for(const l of bundleFor(sku).lines) explode(l.sku,l.qty*rest,src,depth+1); } return; }
+    demand[sku]=(demand[sku]||0)+qty; (why[sku]=why[sku]||new Set()).add(src); }
+  for(const o of db.orders.filter(o=>o.status==='pending')){ const b=bundle(o.bundleId); if(!b)continue; if(b.product) explode(b.product,1,o.client,0); else for(const l of b.lines) explode(l.sku,l.qty,o.client,0); }
+  for(const i of db.items) if(i.type==='finished'&&(i.target||0)>0&&bundleFor(i.sku)){ explode(i.sku,i.target,'stock d\'avance',0); }
+  const rows=[]; for(const sku in demand){ const have=Math.max(avail[sku]||0,0); const short=Math.max(0,demand[sku]-have); rows.push({sku,need:demand[sku],have,short,src:[...why[sku]]}); }
+  rows.sort((a,b)=>b.short-a.short||a.sku.localeCompare(b.sku));
+  return rows;
+}
+function renderOrders(){
+  const rows=computeNeeds(); const toBuy=rows.filter(r=>r.short>0); const cost=toBuy.reduce((a,r)=>a+r.short*unitValue(r.sku),0);
+  const pend=db.orders.filter(o=>o.status==='pending').length;
+  $('#shop-count').textContent=toBuy.length?`${toBuy.length} article${toBuy.length>1?'s':''} · ${eur(cost)}`:'rien à commander';
+  $('#shop-sub').textContent=`${pend} commande${pend>1?'s':''} en attente + objectif de stock d'avance (${db.items.filter(i=>i.type==='finished'&&i.target>0).map(i=>`${i.target} ${i.name.replace(/\s*\(.*\)$/,'')}`).join(', ')||'aucun'}). Les produits finis déjà montés et non réservés sont comptés comme disponibles.`;
+  $('#shop-table tbody').innerHTML=rows.map(r=>{const it=item(r.sku);return `<tr class="${r.short?'low':''}"><td><div class="name">${esc(it?.name||r.sku)}</div><div class="sub"><span class="mono">${esc(r.sku)}</span> · pour ${esc(r.src.join(', '))}</div></td><td class="r num stockcell">${r.short?`<b>${r.short}</b>`:'—'}</td><td class="r num">${r.need}</td><td class="r num">${r.have}</td><td class="r num">${r.short?eur(r.short*unitValue(r.sku)):''}</td><td>${it?.link?.startsWith('http')?`<a href="${esc(it.link)}" target="_blank" rel="noopener">commander</a>`:''}</td></tr>`;}).join('')||'<tr><td colspan="6" class="empty">Aucune commande en attente et stock d\'avance atteint.</td></tr>';
+  const sm=stockMap();
+  const card=o=>{const b=bundle(o.bundleId); if(!b) return ''; const miss=b.lines.filter(l=>(sm[l.sku]||0)<l.qty); const prodFree=b.product?((sm[b.product]||0)-reservedFinished(b.product)):0;
+    const st={pending:['pending','En attente'],built:['built','Construit, à livrer'],delivered:['delivered','Livré']}[o.status];
+    return `<div class="ocard ${o.status}"><div class="head"><span class="n">#${o.num}</span><span class="client grow">${esc(o.client)}</span><span class="chip ${st[0]}">${st[1]}</span></div>
+      <div class="muted" style="font-size:13px">${esc(b.name)} · créée le ${fmtTs(o.createdAt)}${o.due?` · échéance ${new Date(o.due).toLocaleDateString('fr-BE')}`:''}${o.builtAt?` · construite le ${fmtTs(o.builtAt)}`:''}${o.deliveredAt?` · livrée le ${fmtTs(o.deliveredAt)}`:''}${o.note?` · ${esc(o.note)}`:''}</div>
+      ${o.status==='pending'?`<div class="row" style="font-size:13px">${miss.length?`<span class="chip out">${miss.length} pièce${miss.length>1?'s':''} manquante${miss.length>1?'s':''}</span>`:'<span class="chip in">Toutes les pièces sont en stock</span>'}${prodFree>0?`<span class="chip build">${prodFree} ${esc(item(b.product)?.name.replace(/\s*\(.*\)$/,''))} déjà monté${prodFree>1?'s':''} et libre${prodFree>1?'s':''}</span>`:''}</div>`:''}
+      <details><summary>Pièces du bundle (${b.lines.length})</summary><div class="chk" style="margin-top:8px">${b.lines.map(l=>{const it=item(l.sku);const s=sm[l.sku]||0;return `<div class="l ${s<l.qty?'miss':'ok'}"><span></span><div><div style="font-weight:600">${esc(it?.name||l.sku)}</div><div class="sub muted mono">${esc(l.sku)} · en stock : ${s}${s<l.qty?' <b style="color:var(--out)">manque '+(l.qty-s)+'</b>':''}</div></div><div class="cnt num">× ${l.qty}</div></div>`;}).join('')}</div></details>
+      <div class="row" style="justify-content:flex-end">
+        ${o.status==='pending'?`${prodFree>0?`<button class="btn small" data-assign="${o.id}">Affecter un ${esc(item(b.product)?.name.replace(/\s*\(.*\)$/,''))} du stock</button>`:''}<button class="btn small primary" data-obuild="${o.id}">Construire</button>`:''}
+        ${o.status==='built'?`<button class="btn small primary" data-deliver="${o.id}">Livrer</button>`:''}
+        ${o.status!=='delivered'?`<button class="btn small danger" data-odel="${o.id}">Annuler</button>`:`<button class="btn small" data-odel="${o.id}">Supprimer</button>`}
+      </div></div>`;};
+  const byDate=(a,b)=>a.createdAt.localeCompare(b.createdAt);
+  $('#o-pending').innerHTML=db.orders.filter(o=>o.status==='pending').sort(byDate).map(card).join('')||'<div class="empty">Aucune commande en attente.</div>';
+  $('#o-built').innerHTML=db.orders.filter(o=>o.status==='built').sort(byDate).map(card).join('')||'<div class="empty">Rien à livrer.</div>';
+  $('#o-done').innerHTML=db.orders.filter(o=>o.status==='delivered').sort((a,b)=>byDate(b,a)).map(card).join('')||'<div class="empty">Aucune livraison encore.</div>';
+  $$('[data-obuild]').forEach(x=>x.onclick=()=>{const o=order(x.dataset.obuild);go('scan');startBuild(o.bundleId,o.id);});
+  $$('[data-assign]').forEach(x=>x.onclick=()=>{const o=order(x.dataset.assign);o.status='built';o.builtAt=new Date().toISOString();o.buildRef='Affecté depuis le stock';save();toast(`${o.client} : produit réservé depuis le stock`);});
+  $$('[data-deliver]').forEach(x=>x.onclick=()=>{const o=order(x.dataset.deliver);const b=bundle(o.bundleId);confirmModal(`Livrer à ${o.client} ?`,`<p>${b.product?`1 × ${esc(item(b.product)?.name||b.product)} sort du stock.`:'La commande passe en livrée.'}</p>`,'Livrer',()=>{if(b.product)addMove(b.product,-1,'OUT',`Livraison — ${o.client} (#${o.num})`);o.status='delivered';o.deliveredAt=new Date().toISOString();save();toast(`Livré à ${o.client}`);},false);});
+  $$('[data-odel]').forEach(x=>x.onclick=()=>{const o=order(x.dataset.odel);confirmModal(o.status==='delivered'?'Supprimer de l\'historique ?':`Annuler la commande de ${o.client} ?`,o.status==='built'?'<p>Le produit monté redevient libre dans le stock.</p>':'<p>Les mouvements déjà enregistrés restent dans le journal.</p>','Confirmer',()=>{db.orders=db.orders.filter(z=>z.id!==o.id);save();});});
+}
+
+/* ---- Journal ---- */
+let jf={q:'',type:''};
+$('#j-search').oninput=e=>{jf.q=e.target.value;renderJournal();};
+$('#j-type').onchange=e=>{jf.type=e.target.value;renderJournal();};
+function renderJournal(){
+  const q=jf.q.trim().toUpperCase();
+  const rows=db.moves.filter(m=>(!jf.type||m.type===jf.type)&&(!q||m.sku.toUpperCase().includes(q)||(item(m.sku)?.name||'').toUpperCase().includes(q)||(m.ref||'').toUpperCase().includes(q))).slice().reverse().slice(0,300);
+  $('#j-table tbody').innerHTML=rows.map(m=>`<tr><td class="num" style="white-space:nowrap">${fmtTs(m.ts)}</td><td>${typeChip(m.type)}</td><td class="mono">${esc(m.sku)}</td><td>${esc(item(m.sku)?.name||'—')}</td><td class="r num" style="color:${m.qty>0?'var(--in)':'var(--out)'};font-weight:700">${m.qty>0?'+':''}${m.qty}</td><td class="muted">${esc(m.ref)}${m.note?' · '+esc(m.note):''}</td><td><button class="btn small icon" data-del="${m.id}" title="Supprimer ce mouvement">✕</button></td></tr>`).join('')||'<tr><td colspan="7" class="empty">Aucun mouvement.</td></tr>';
+  $$('#j-table [data-del]').forEach(b=>b.onclick=()=>{const m=db.moves.find(x=>x.id===+b.dataset.del);confirmModal('Supprimer ce mouvement ?',`<p>${esc(m.sku)} ${m.qty>0?'+':''}${m.qty} (${esc(m.ref)}). Le stock sera recalculé sans lui.</p>`,'Supprimer',()=>{db.moves=db.moves.filter(x=>x.id!==m.id);save();});});
+}
+$('#btn-csv').onclick=()=>{ const csv=['date;type;sku;article;qte;reference'].concat(db.moves.map(m=>[m.ts,m.type,m.sku,(item(m.sku)?.name||'').replace(/;/g,','),m.qty,(m.ref||'').replace(/;/g,',')].join(';'))).join('\n'); go('more'); showIO(csv); };
+
+/* ---- Plus : labels, cats, data ---- */
+function renderMore(){
+  const sel=$('#lab-cat'); if(sel.options.length!==db.cats.length+1) sel.innerHTML=catOptions('',true);
+  $('#cat-list').innerHTML=db.cats.map(c=>`<span class="chip">${esc(c)} <button data-rc="${esc(c)}" style="border:0;background:none;cursor:pointer;color:var(--out);padding:0 0 0 6px" title="Retirer">✕</button></span>`).join('');
+  $$('#cat-list [data-rc]').forEach(b=>b.onclick=()=>{const c=b.dataset.rc;const n=db.items.filter(i=>i.cat===c).length;if(n){toast(`${n} article${n>1?'s':''} utilise${n>1?'nt':''} encore « ${c} »`);return;}db.cats=db.cats.filter(x=>x!==c);save();});
+}
+$('#cat-add').onclick=()=>{const v=$('#cat-new').value.trim();if(!v||db.cats.includes(v))return;db.cats.push(v);$('#cat-new').value='';save();};
+function drawLabels(list){
+  $('#labels').innerHTML=list.map((l,i)=>`<div class="label"><svg id="bc${i}"></svg><div class="n">${esc(l.name)}</div></div>`).join('');
+  list.forEach((l,i)=>{try{JsBarcode('#bc'+i,l.code,{format:'CODE128',width:1.4,height:40,fontSize:12,font:'JetBrains Mono, monospace',margin:4,textMargin:2});}catch(e){}});
+}
+$('#lab-gen').onclick=()=>{const c=$('#lab-cat').value;drawLabels(db.items.filter(i=>!c||i.cat===c).map(i=>({code:i.sku,name:i.name})));};
+$('#lab-cmd').onclick=()=>drawLabels([{code:'CMD-IN',name:'Mode ENTRÉE'},{code:'CMD-OUT',name:'Mode SORTIE'},{code:'CMD-BUILD',name:'Mode BUILD'},{code:'CMD-UNDO',name:'Annuler le dernier scan'}].concat(db.bundles.map(b=>({code:'BND-'+b.id.toUpperCase(),name:'Bundle : '+b.name}))));
+function showIO(text){ $('#io').hidden=false; $('#io-actions').hidden=false; $('#io').value=text; }
+$('#btn-export').onclick=()=>showIO(JSON.stringify(db,null,1));
+let ioMode='json';
+$('#btn-import').onclick=()=>{ioMode='json';$('#csv-help').hidden=true;$('#io').placeholder='Collez ici un export JSON puis cliquez Charger';showIO('');};
+$('#btn-csvimp').onclick=()=>{ioMode='csv';$('#csv-help').hidden=false;$('#io').placeholder='sku;nom;categorie;prix;rop;stock;poids;lien;type\nRCK-EXEMPLE;Boîtier rack 10U;Rack;158;1;2;4.5;https://…;composant';showIO('');};
+function importCsv(text){
+  const lines=text.replace(/\r/g,'').split('\n').filter(l=>l.trim()); if(lines.length<2) throw new Error('vide');
+  const sep=(lines[0].match(/;/g)||[]).length>=(lines[0].match(/,/g)||[]).length?';':',';
+  const split=l=>{const out=[];let cur='',q=false;for(const ch of l){if(ch==='"'){q=!q;continue;}if(ch===sep&&!q){out.push(cur);cur='';}else cur+=ch;}out.push(cur);return out.map(s=>s.trim());};
+  const norm=s=>s.toLowerCase().normalize('NFD').replace(/[^a-z0-9]/g,'');
+  const head=split(lines[0]).map(norm);
+  const col=(...names)=>{for(const n of names){const i=head.findIndex(h=>h===n||h.startsWith(n));if(i>=0)return i;}return -1;};
+  const c={sku:col('sku','itemnumber','code','reference'),name:col('nom','name','titre','description','productdescription','designation'),cat:col('categorie','category','cat'),price:col('prix','price','prixunitaire'),rop:col('rop','seuil','reorder'),stock:col('stock','instock','quantite','qte'),weight:col('poids','weight'),link:col('lien','link','url'),type:col('type')};
+  if(c.sku<0) throw new Error('colonne sku introuvable');
+  let created=0,updated=0; const num=v=>{const n=parseFloat(String(v||'').replace(/[^0-9,.-]/g,'').replace(',','.'));return isNaN(n)?0:n;};
+  for(const l of lines.slice(1)){ const r=split(l); const sku=(r[c.sku]||'').toUpperCase().trim(); if(!sku||/^(CMD|BND)-/.test(sku)) continue;
+    const g=i=>i>=0?(r[i]||''):''; let it=item(sku); const isNew=!it;
+    if(isNew){ it={sku,name:'',desc:'',cat:'',price:0,weight:0,rop:1,link:'',type:'component',target:0}; db.items.push(it); created++; } else updated++;
+    if(c.name>=0) it.name=g(c.name)||it.name; if(c.cat>=0&&g(c.cat)) it.cat=g(c.cat); if(c.price>=0) it.price=num(g(c.price)); if(c.rop>=0) it.rop=Math.round(num(g(c.rop))); if(c.weight>=0) it.weight=num(g(c.weight)); if(c.link>=0) it.link=g(c.link)||it.link;
+    if(c.type>=0){ const tv=norm(g(c.type)); it.type=(tv.startsWith('fini')||tv.startsWith('finished')||tv.startsWith('produit'))?'finished':'component'; }
+    if(!it.cat) it.cat=db.cats[0]||'Divers'; if(!db.cats.includes(it.cat)) db.cats.push(it.cat);
+    if(c.stock>=0&&g(c.stock)!==''){ const target=Math.round(num(g(c.stock))); const cur=stock(sku); if(target!==cur) addMove(sku,target-cur,'ADJ','Import CSV'); }
+  }
+  return {created,updated};
+}
+$('#io-copy').onclick=()=>{const t=$('#io');navigator.clipboard.writeText(t.value).then(()=>toast('Copié')).catch(()=>{t.select();toast('Sélectionné : Ctrl+C pour copier');});};
+$('#io-load').onclick=()=>{ const v=$('#io').value; if(ioMode==='csv'||(!v.trim().startsWith('{')&&v.includes('\n'))){ try{const r=importCsv(v);save();toast(`${r.created} créé${r.created>1?'s':''}, ${r.updated} mis à jour`);}catch(e){toast('CSV illisible : '+e.message);} return; } try{const d=JSON.parse(v);if(!d.items||!d.moves)throw 0;db=d;db.orders=db.orders||[];db.orderSeq=db.orderSeq||0;save();toast('Données chargées');}catch(e){toast('JSON invalide');} };
+$('#io-file').onchange=e=>{const f=e.target.files[0];if(!f)return;ioMode=/\.csv$/i.test(f.name)?'csv':'json';$('#csv-help').hidden=ioMode!=='csv';const r=new FileReader();r.onload=()=>{$('#io').value=r.result;$('#io').hidden=false;$('#io-actions').hidden=false;};r.readAsText(f);};
+$('#btn-reset').onclick=()=>confirmModal('Tout vider ?','<p>Articles, bundles, commandes et mouvements de ce navigateur seront effacés. Pensez à copier l\'export JSON avant.</p>','Vider',()=>{db=freshDb();save();toast('Données vidées');});
+
+/* ============ BOOT ============ */
+let startPage='scan'; try{startPage=localStorage.getItem(KEY+':page')||'scan';}catch(e){}
+go(startPage);
+</script>
+</body></html>
