@@ -185,6 +185,20 @@ tr[data-sku]{cursor:pointer}
 .chart text.m{fill:var(--muted);font-size:12px}
 .chart svg{max-width:640px}
 .chart rect.seg:hover{opacity:.8}
+/* sélecteur par catégorie (bundles) */
+.cats{display:flex;flex-direction:column;gap:6px}
+.cats details{background:var(--surface);box-shadow:var(--shadow);border-radius:12px}
+.cats summary{cursor:pointer;padding:10px 14px;display:flex;justify-content:space-between;gap:10px;font-weight:600;list-style:none}
+.cats summary::-webkit-details-marker{display:none}
+.cats summary::before{content:"›";display:inline-block;margin-right:8px;color:var(--muted);transition:transform .15s}
+.cats details[open] summary::before{transform:rotate(90deg)}
+.cats .pick{display:flex;flex-direction:column;border-top:1px solid var(--line)}
+.cats .pk{display:flex;align-items:center;gap:10px;padding:8px 14px;border-bottom:1px solid var(--line);cursor:pointer}
+.cats .pk:last-child{border-bottom:0}
+.cats .pk.on{background:color-mix(in srgb,var(--accent) 8%,var(--surface))}
+.cats .pk input[type=checkbox]{width:20px;height:20px;accent-color:var(--accent);flex:none}
+.cats .pk input[type=number]{width:64px;text-align:center;padding:5px 6px}
+.cats .pk input[type=number]:disabled{opacity:.35}
 /* commandes */
 .ocards{display:flex;flex-direction:column;gap:10px}
 .ocard{background:var(--surface);box-shadow:var(--shadow);border-radius:16px;padding:14px 16px;display:flex;flex-direction:column;gap:8px}
@@ -200,7 +214,7 @@ tr[data-sku]{cursor:pointer}
 </style>
 
 </head><body><header class="top">
-  <div class="brand"><h1>Stock Atelier</h1><small id="brand-sub">prototype</small></div>
+  <div class="brand"><h1>Stock Atelier</h1><small id="brand-sub">v1.3</small></div>
   <div class="ready-pill" id="top-ready"></div>
 </header>
 
@@ -331,7 +345,7 @@ tr[data-sku]{cursor:pointer}
           <button class="btn" id="btn-csvimp">Importer des articles (CSV)</button>
           <button class="btn danger" id="btn-reset">Vider toutes les données</button>
         </div>
-        <div class="muted" style="font-size:12px" id="csv-help" hidden>CSV avec une ligne d'en-tête, séparateur « ; » ou « , ». Colonnes reconnues (ordre libre) : <span class="mono">sku, nom, categorie, prix, rop, stock, poids, lien, type</span> (type = composant ou fini). Les SKU déjà existants sont mis à jour, les autres créés. Depuis Excel : Fichier → Enregistrer sous → CSV UTF-8.</div>
+        <div class="muted" style="font-size:12px" id="csv-help" hidden>CSV avec une ligne d'en-tête, séparateur « ; » ou « , ». Colonnes reconnues (ordre libre) : <span class="mono">sku, nom, categorie, prix, rop, stock, poids, taille, lien, type, description</span> ; les autres colonnes sont ignorées (type = composant ou fini). Les SKU déjà existants sont mis à jour, les autres créés. Depuis Excel : Fichier → Enregistrer sous → CSV UTF-8.</div>
         <textarea id="io" rows="8" class="mono" hidden placeholder="Collez ici un export JSON puis cliquez Charger"></textarea>
         <div class="row" id="io-actions" hidden><button class="btn" id="io-copy">Copier</button><button class="btn primary" id="io-load">Charger</button><input type="file" id="io-file" accept=".json,.csv,text/csv,application/json"></div>
       </div>
@@ -478,8 +492,26 @@ $('#scan-input').addEventListener('input',e=>renderSugg(e.target.value));
 $('#scan-input').addEventListener('keydown',e=>{ if(e.key==='Enter'){e.preventDefault();submitScan();} });
 $('#scan-go').onclick=submitScan;
 function submitScan(){ const v=$('#scan-input').value.trim(); if(!v)return; $('#scan-input').value=''; renderSugg(''); handleCode(v); }
-// Scanner USB (clavier) : si on est sur l'onglet Scan et que le focus n'est pas dans un champ, on ramène le focus sur l'input.
-document.addEventListener('keydown',e=>{ if(page!=='scan')return; const t=e.target; if(t&&(t.tagName==='INPUT'||t.tagName==='TEXTAREA'||t.tagName==='SELECT'))return; if($('#modal-root').children.length)return; if(e.key.length===1||e.key==='Enter'){ $('#scan-input').focus(); } });
+// Scanner USB (clavier) : écoute globale. Une rafale de caractères terminée par Entrée, où qu'on soit dans l'app,
+// est traitée comme un scan : on bascule sur l'onglet Scan et on exécute le code (CMD-IN, CMD-OUT, BND-…, SKU…).
+let burst='',burstT=0;
+document.addEventListener('keydown',e=>{
+  const t=e.target; const inField=t&&(t.tagName==='INPUT'||t.tagName==='TEXTAREA'||t.tagName==='SELECT');
+  if(inField&&t.id==='scan-input')return; // déjà géré par le champ de scan
+  const now=Date.now(); if(now-burstT>400) burst=''; burstT=now;
+  if(e.key==='Enter'){
+    if(burst.length>=3){
+      const code=burst; burst='';
+      e.preventDefault();
+      if(inField&&t.value&&t.value.toUpperCase().endsWith(code.toUpperCase())) t.value=t.value.slice(0,-code.length); // retire le texte tapé par le scanner dans un autre champ
+      if($('#modal-root').children.length) closeModal();
+      if(page!=='scan') go('scan');
+      handleCode(code);
+    }
+    return;
+  }
+  if(e.key.length===1&&!e.ctrlKey&&!e.metaKey&&!e.altKey){ burst+=e.key; if(!inField&&page==='scan'&&!$('#modal-root').children.length){ $('#scan-input').focus(); } }
+});
 
 function showLast(cls,big,delta,sub){ const el=$('#lastscan'); el.className='lastscan '+cls; el.innerHTML=`<div class="big">${big}</div>${delta?`<div class="delta">${delta}</div>`:''}${sub?`<div class="muted">${sub}</div>`:''}`; }
 
@@ -560,7 +592,7 @@ function renderStock(){
   const sm=stockMap(); const q=stockFilter.q.trim().toUpperCase();
   const rows=db.items.filter(i=>(!q||i.sku.toUpperCase().includes(q)||i.name.toUpperCase().includes(q))&&(!stockFilter.cat||i.cat===stockFilter.cat)&&(!stockFilter.low||(i.type!=='finished'&&(sm[i.sku]||0)<i.rop)));
   let tv=0;
-  $('#stock-table tbody').innerHTML=rows.map(i=>{const s=sm[i.sku]||0;const v=s*unitValue(i.sku);tv+=v;const low=i.type!=='finished'&&s<i.rop;return `<tr data-sku="${esc(i.sku)}" draggable="true" class="${low?'low':''}"><td><span class="handle" title="Glisser pour réordonner">☰</span></td><td style="min-width:190px"><div class="name">${esc(i.name)}</div><div class="sub"><span class="mono">${esc(i.sku)}</span> · ${esc(i.cat)}${i.type==='finished'?' · produit fini':''}</div></td><td class="r num stockcell">${s}</td><td class="r num">${i.rop}</td><td class="r num">${eur(unitValue(i.sku))}</td><td class="r num">${eur(v)}</td><td class="ord" style="white-space:nowrap"><button data-mv="-1" title="Monter">▲</button><button data-mv="1" title="Descendre">▼</button></td></tr>`;}).join('')||'<tr><td colspan="7" class="empty">Aucun article.</td></tr>';
+  $('#stock-table tbody').innerHTML=rows.map(i=>{const s=sm[i.sku]||0;const v=s*unitValue(i.sku);tv+=v;const low=i.type!=='finished'&&s<i.rop;return `<tr data-sku="${esc(i.sku)}" draggable="true" class="${low?'low':''}"><td><span class="handle" title="Glisser pour réordonner">☰</span></td><td style="min-width:190px"><div class="name">${esc(i.name)}</div><div class="sub"><span class="mono">${esc(i.sku)}</span> · ${esc(i.cat)}${i.type==='finished'?' · produit fini':''}${i.weight?` · ${i.weight} kg`:''}${i.dim?` · ${esc(i.dim)}`:''}</div></td><td class="r num stockcell">${s}</td><td class="r num">${i.rop}</td><td class="r num">${eur(unitValue(i.sku))}</td><td class="r num">${eur(v)}</td><td class="ord" style="white-space:nowrap"><button data-mv="-1" title="Monter">▲</button><button data-mv="1" title="Descendre">▼</button></td></tr>`;}).join('')||'<tr><td colspan="7" class="empty">Aucun article.</td></tr>';
   $('#stock-foot').innerHTML=`<span>${rows.length} article${rows.length>1?'s':''}</span><span>· valeur affichée ${eur(tv)}</span>`;
   const tb=$('#stock-table tbody');
   tb.querySelectorAll('tr[data-sku]').forEach(tr=>{
@@ -577,7 +609,7 @@ function moveItem(sku,dir){ const i=db.items.findIndex(x=>x.sku===sku); const j=
 function placeBefore(sku,beforeSku){ const i=db.items.findIndex(x=>x.sku===sku); const [it]=db.items.splice(i,1); const j=db.items.findIndex(x=>x.sku===beforeSku); db.items.splice(j,0,it); save(); }
 
 function itemForm(sku,presetSku){
-  const it=sku?item(sku):{sku:presetSku||'',name:'',desc:'',cat:db.cats[0]||'',price:0,weight:0,rop:1,link:'',type:'component'};
+  const it=sku?item(sku):{sku:presetSku||'',name:'',desc:'',cat:db.cats[0]||'',price:0,weight:0,dim:'',rop:1,link:'',type:'component',target:0};
   const isNew=!sku; const s=sku?stock(sku):0;
   openModal(`<h3>${isNew?'Nouvel item':'Modifier '+esc(it.sku)}</h3>
   <div class="grid2">
@@ -589,6 +621,7 @@ function itemForm(sku,presetSku){
     <label class="f">Seuil de réassort (ROP)<input type="number" id="f-rop" value="${it.rop}" min="0"></label>
     <label class="f">Prix unitaire (€)<input type="number" id="f-price" value="${it.price}" min="0" step="0.01"></label>
     <label class="f">Poids (kg)<input type="number" id="f-weight" value="${it.weight}" min="0" step="0.01"></label>
+    <label class="f">Taille / dimensions<input type="text" id="f-dim" value="${esc(it.dim||'')}" placeholder="540 × 545 × 500 mm"></label>
     <label class="f" id="f-target-wrap" ${it.type==='finished'?'':'hidden'}>Stock d'avance visé (produit fini)<input type="number" id="f-target" value="${it.target||0}" min="0"></label>
     <label class="f" style="grid-column:1/-1">Lien fournisseur<input type="text" id="f-link" value="${esc(it.link)}"></label>
     ${isNew?`<label class="f">Stock initial<input type="number" id="f-stock" value="0" min="0"></label>`:`<label class="f">Stock actuel (ajuster)<input type="number" id="f-stock" value="${s}"></label>`}
@@ -603,7 +636,7 @@ function itemForm(sku,presetSku){
       if(isNew&&item(nsku)){toast('Ce SKU existe déjà');return;}
       if(/^(CMD|BND)-/.test(nsku)){toast('Les préfixes CMD- et BND- sont réservés');return;}
       const o=isNew?{sku:nsku}:it;
-      o.type=m.querySelector('#f-type').value; o.target=+m.querySelector('#f-target').value||0; o.name=m.querySelector('#f-name').value.trim(); o.desc=m.querySelector('#f-desc').value.trim(); o.cat=m.querySelector('#f-cat').value; o.rop=+m.querySelector('#f-rop').value||0; o.price=+m.querySelector('#f-price').value||0; o.weight=+m.querySelector('#f-weight').value||0; o.link=m.querySelector('#f-link').value.trim();
+      o.type=m.querySelector('#f-type').value; o.target=+m.querySelector('#f-target').value||0; o.name=m.querySelector('#f-name').value.trim(); o.desc=m.querySelector('#f-desc').value.trim(); o.cat=m.querySelector('#f-cat').value; o.rop=+m.querySelector('#f-rop').value||0; o.price=+m.querySelector('#f-price').value||0; o.weight=+m.querySelector('#f-weight').value||0; o.dim=m.querySelector('#f-dim').value.trim(); o.link=m.querySelector('#f-link').value.trim();
       const ns=+m.querySelector('#f-stock').value||0;
       if(isNew){ db.items.push(o); if(ns) addMove(nsku,ns,'ADJ','Stock initial à la création'); }
       else if(ns!==s){ addMove(o.sku,ns-s,'ADJ','Inventaire (correction manuelle)'); }
@@ -632,19 +665,30 @@ function renderBundles(){
   $$('#bcards [data-edit]').forEach(x=>x.onclick=()=>bundleForm(x.dataset.edit));
   $$('#bcards [data-build]').forEach(x=>x.onclick=()=>{go('scan');startBuild(x.dataset.build);});
 }
+function renderCatPicker(m){
+  const box=m.querySelector('#b-cats'); if(!box)return; const open=new Set([...box.querySelectorAll('details[open]')].map(d=>d.dataset.c));
+  const inB=sku=>draft_lines_ref.find(l=>l.sku===sku);
+  box.innerHTML=db.cats.filter(c=>db.items.some(i=>i.cat===c)).map(c=>{const its=db.items.filter(i=>i.cat===c);const n=its.filter(i=>inB(i.sku)).length;return `<details data-c="${esc(c)}" ${open.has(c)?'open':''}><summary><span>${esc(c)}</span><span class="muted">${n?`<b>${n}</b> sélectionné${n>1?'s':''} · `:''}${its.length} articles</span></summary><div class="pick">${its.map(i=>{const l=inB(i.sku);return `<label class="pk ${l?'on':''}"><input type="checkbox" data-pk="${esc(i.sku)}" ${l?'checked':''}><span class="grow"><span style="font-weight:600">${esc(i.name)}</span><span class="sub muted mono"> ${esc(i.sku)}</span></span><input type="number" min="1" value="${l?l.qty:1}" data-pq="${esc(i.sku)}" ${l?'':'disabled'} aria-label="Quantité"></label>`;}).join('')}</div></details>`;}).join('');
+  box.querySelectorAll('[data-pk]').forEach(x=>x.onchange=()=>{const sku=x.dataset.pk;const q=Math.max(1,+box.querySelector(`[data-pq="${CSS.escape(sku)}"]`).value||1);if(x.checked){if(!inB(sku))draft_lines_ref.push({sku,qty:q});}else{const i=draft_lines_ref.findIndex(l=>l.sku===sku);if(i>=0)draft_lines_ref.splice(i,1);}draft_render_ref();});
+  box.querySelectorAll('[data-pq]').forEach(x=>x.onchange=()=>{const l=inB(x.dataset.pq);if(l){l.qty=Math.max(1,+x.value||1);draft_render_ref();}});
+}
+let draft_lines_ref=[],draft_render_ref=()=>{};
 function bundleForm(id){
   const b=id?bundle(id):{id:'b'+Date.now().toString(36),name:'',desc:'',product:'',lines:[]};
   const draft=JSON.parse(JSON.stringify(b)); const isNew=!id;
   const fin=db.items.filter(i=>i.type==='finished');
+  draft_lines_ref=draft.lines;
   const render=()=>{
     const m=$('#modal-root .modal'); const sm=stockMap();
     m.querySelector('#bl').innerHTML=draft.lines.map((l,i)=>{const it=item(l.sku);return `<div class="ln"><div><div style="font-weight:600">${esc(it?.name||'?')}</div><div class="sub muted mono">${esc(l.sku)} · stock ${sm[l.sku]||0}${it?.type==='finished'?' · produit fini':''}</div></div><input type="number" min="1" value="${l.qty}" data-q="${i}" aria-label="Quantité"><div class="ord"><button data-up="${i}" title="Monter">▲</button><button data-dn="${i}" title="Descendre">▼</button><button data-rm="${i}" title="Retirer" style="color:var(--out)">✕</button></div></div>`;}).join('')||'<div class="muted">Aucune ligne. Ajoutez des articles ci-dessous.</div>';
+    renderCatPicker(m);
     m.querySelector('#b-tot').textContent=`${draft.lines.reduce((a,l)=>a+l.qty,0)} pièces · ${eur(bundleCost(draft))} · ${kg(bundleWeight(draft))} · constructible × ${buildable(draft,sm)}`;
     m.querySelectorAll('[data-q]').forEach(x=>x.onchange=()=>{draft.lines[+x.dataset.q].qty=Math.max(1,+x.value||1);render();});
     m.querySelectorAll('[data-rm]').forEach(x=>x.onclick=()=>{draft.lines.splice(+x.dataset.rm,1);render();});
     m.querySelectorAll('[data-up]').forEach(x=>x.onclick=()=>{const i=+x.dataset.up;if(i>0){[draft.lines[i-1],draft.lines[i]]=[draft.lines[i],draft.lines[i-1]];render();}});
     m.querySelectorAll('[data-dn]').forEach(x=>x.onclick=()=>{const i=+x.dataset.dn;if(i<draft.lines.length-1){[draft.lines[i+1],draft.lines[i]]=[draft.lines[i],draft.lines[i+1]];render();}});
   };
+  draft_render_ref=render;
   openModal(`<h3>${isNew?'Nouveau bundle':'Modifier « '+esc(b.name)+' »'}</h3>
   <div class="grid2">
     <label class="f">Nom<input type="text" id="b-name" value="${esc(draft.name)}" placeholder="Rack Pro, Pack caméra…"></label>
@@ -655,6 +699,8 @@ function bundleForm(id){
   <div class="lines" id="bl"></div>
   <div class="row"><input type="text" id="b-add" placeholder="Ajouter : tapez un SKU ou un nom…" class="grow" autocomplete="off"><input type="number" id="b-addq" value="1" min="1" style="width:70px" aria-label="Quantité"></div>
   <div class="sugg" id="b-sugg"></div>
+  <div class="eyebrow">Ou parcourir par catégorie</div>
+  <div class="cats" id="b-cats"></div>
   <div class="muted num" id="b-tot" style="font-size:13px"></div>
   <div class="actions">${isNew?'':'<button class="btn danger left" id="b-del">Supprimer le bundle</button>'}<button class="btn" id="b-x">Annuler</button><button class="btn primary" id="b-ok">${isNew?'Créer':'Enregistrer'}</button></div>`,m=>{
     render();
@@ -768,7 +814,7 @@ function showIO(text){ $('#io').hidden=false; $('#io-actions').hidden=false; $('
 $('#btn-export').onclick=()=>showIO(JSON.stringify(db,null,1));
 let ioMode='json';
 $('#btn-import').onclick=()=>{ioMode='json';$('#csv-help').hidden=true;$('#io').placeholder='Collez ici un export JSON puis cliquez Charger';showIO('');};
-$('#btn-csvimp').onclick=()=>{ioMode='csv';$('#csv-help').hidden=false;$('#io').placeholder='sku;nom;categorie;prix;rop;stock;poids;lien;type\nRCK-EXEMPLE;Boîtier rack 10U;Rack;158;1;2;4.5;https://…;composant';showIO('');};
+$('#btn-csvimp').onclick=()=>{ioMode='csv';$('#csv-help').hidden=false;$('#io').placeholder='sku;nom;categorie;prix;rop;stock;poids;taille;lien;type\nRCK-EXEMPLE;Boîtier rack 10U;Rack;158;1;2;16,3;540 × 545 × 500 mm;https://…;composant';showIO('');};
 function importCsv(text){
   const lines=text.replace(/\r/g,'').split('\n').filter(l=>l.trim()); if(lines.length<2) throw new Error('vide');
   const sep=(lines[0].match(/;/g)||[]).length>=(lines[0].match(/,/g)||[]).length?';':',';
@@ -776,13 +822,13 @@ function importCsv(text){
   const norm=s=>s.toLowerCase().normalize('NFD').replace(/[^a-z0-9]/g,'');
   const head=split(lines[0]).map(norm);
   const col=(...names)=>{for(const n of names){const i=head.findIndex(h=>h===n||h.startsWith(n));if(i>=0)return i;}return -1;};
-  const c={sku:col('sku','itemnumber','code','reference'),name:col('nom','name','titre','description','productdescription','designation'),cat:col('categorie','category','cat'),price:col('prix','price','prixunitaire'),rop:col('rop','seuil','reorder'),stock:col('stock','instock','quantite','qte'),weight:col('poids','weight'),link:col('lien','link','url'),type:col('type')};
+  const c={sku:col('sku','itemnumber','code','reference'),name:col('nom','name','titre','description','productdescription','designation'),cat:col('categorie','category','cat'),price:col('prix','price','prixunitaire'),rop:col('rop','seuil','reorder'),stock:col('stock','instock','quantite','qte'),weight:col('poids','weight'),dim:col('taille','dimension','dimensions','size'),desc:col('description','note','notes','commentaire'),link:col('lien','link','url'),type:col('type')};
   if(c.sku<0) throw new Error('colonne sku introuvable');
   let created=0,updated=0; const num=v=>{const n=parseFloat(String(v||'').replace(/[^0-9,.-]/g,'').replace(',','.'));return isNaN(n)?0:n;};
   for(const l of lines.slice(1)){ const r=split(l); const sku=(r[c.sku]||'').toUpperCase().trim(); if(!sku||/^(CMD|BND)-/.test(sku)) continue;
     const g=i=>i>=0?(r[i]||''):''; let it=item(sku); const isNew=!it;
     if(isNew){ it={sku,name:'',desc:'',cat:'',price:0,weight:0,rop:1,link:'',type:'component',target:0}; db.items.push(it); created++; } else updated++;
-    if(c.name>=0) it.name=g(c.name)||it.name; if(c.cat>=0&&g(c.cat)) it.cat=g(c.cat); if(c.price>=0) it.price=num(g(c.price)); if(c.rop>=0) it.rop=Math.round(num(g(c.rop))); if(c.weight>=0) it.weight=num(g(c.weight)); if(c.link>=0) it.link=g(c.link)||it.link;
+    if(c.name>=0) it.name=g(c.name)||it.name; if(c.cat>=0&&g(c.cat)) it.cat=g(c.cat); if(c.price>=0) it.price=num(g(c.price)); if(c.rop>=0) it.rop=Math.round(num(g(c.rop))); if(c.weight>=0) it.weight=num(g(c.weight)); if(c.dim>=0) it.dim=g(c.dim)||it.dim||''; if(c.desc>=0) it.desc=g(c.desc)||it.desc||''; if(c.link>=0) it.link=g(c.link)||it.link;
     if(c.type>=0){ const tv=norm(g(c.type)); it.type=(tv.startsWith('fini')||tv.startsWith('finished')||tv.startsWith('produit'))?'finished':'component'; }
     if(!it.cat) it.cat=db.cats[0]||'Divers'; if(!db.cats.includes(it.cat)) db.cats.push(it.cat);
     if(c.stock>=0&&g(c.stock)!==''){ const target=Math.round(num(g(c.stock))); const cur=stock(sku); if(target!==cur) addMove(sku,target-cur,'ADJ','Import CSV'); }
